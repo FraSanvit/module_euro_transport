@@ -31,61 +31,12 @@ def log_missing_countries(combined: pd.DataFrame, countries: list[str]) -> list[
     return missing
 
 
-def select_by_priority(combined: pd.DataFrame, priority: list[str]) -> pd.DataFrame:
-    """Keep, per country, year and category, the value of the first source in `priority`.
-
-    Logs which sources were used per country and the year-to-year change wherever
-    the selected source switches, since sources may not be consistent.
-    """
-    unknown = sorted(set(combined["source"]) - set(priority))
-    if unknown:
-        raise ValueError(f"Sources without a priority: {unknown}.")
-    rank = combined["source"].map({source: i for i, source in enumerate(priority)})
-    selected = (
-        combined.assign(_rank=rank)
-        .sort_values("_rank", kind="stable")
-        .drop_duplicates(["country_id", "year", "vehicle_category"])
-        .drop(columns="_rank")
-        .sort_values(["country_id", "year", "vehicle_category"], ignore_index=True)
-    )
-    for country, group in selected.groupby("country_id"):
-        counts = group["source"].value_counts().to_dict()
-        LOGGER.info("%s: values per source %s", country, counts)
-    for switch in source_switches(selected).itertuples():
-        LOGGER.warning(
-            "%s %s: source switches %s -> %s at %d (%.0f -> %.0f, ratio %.2f).",
-            switch.country_id,
-            switch.vehicle_category,
-            switch.prev_source,
-            switch.source,
-            switch.year,
-            switch.prev_value,
-            switch.value,
-            switch.ratio,
-        )
-    return selected
-
-
-def source_switches(table: pd.DataFrame) -> pd.DataFrame:
-    """Consecutive years of a country-category where the source changes."""
-    value = "vkm" if "vkm" in table else "stock"
-    table = table.sort_values(["country_id", "vehicle_category", "year"])
-    group = table.groupby(["country_id", "vehicle_category"])
-    prev = group[["year", "source", value]].shift()
-    switch = table["source"].ne(prev["source"]) & table["year"].eq(prev["year"] + 1)
-    out = table.loc[switch, ["country_id", "vehicle_category", "year", "source"]]
-    out["prev_source"] = prev.loc[switch, "source"]
-    out["prev_value"] = prev.loc[switch, value]
-    out["value"] = table.loc[switch, value]
-    out["ratio"] = out["value"] / out["prev_value"]
-    return out.reset_index(drop=True)
-
-
-def main(input_paths, output_path, metric, countries, priority=None):
-    """Read, combine (optionally select by source priority) and write parquet tables."""
+def main(input_paths, output_path, metric, countries):
+    """Read, combine and write parquet tables."""
     combined = combine([pd.read_parquet(p) for p in input_paths], SCHEMAS[metric])
-    if priority:
-        combined = select_by_priority(combined, priority)
+    duplicated = combined.duplicated(["country_id", "year", "vehicle_category"])
+    if duplicated.any():
+        raise ValueError("A country has values from more than one source.")
     log_missing_countries(combined, countries)
     combined.to_parquet(output_path, index=False)
 
@@ -101,5 +52,4 @@ if __name__ == "__main__":
         output_path=snakemake.output[0],  # noqa: F821
         metric=snakemake.params.metric,  # noqa: F821
         countries=snakemake.params.countries,  # noqa: F821
-        priority=snakemake.params.get("priority"),  # noqa: F821
     )

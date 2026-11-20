@@ -202,11 +202,28 @@ def test_settings_country_codes_match_config_schema():
     assert len(jrc) == 27
     assert jrc["GRC"] == "EL"
     assert automatic["eurostat"]["country_codes"]["NOR"] == "NO"  # not a YAML boolean
-    # Vehicle stock: Eurostat geo codes for every allowed country; priority sources exist.
-    assert set(allowed) <= set(automatic["eurostat_stock"]["geo_codes"])
-    assert automatic["eurostat_stock"]["geo_codes"]["NOR"] == "NO"
-    for source in automatic["stock_priority"]:
-        assert "source" in automatic[source], source
+
+
+def test_settings_one_stock_source_per_country():
+    """Each country has at most one vehicle stock source."""
+    settings = yaml.safe_load(
+        (MODULE_ROOT / "workflow/internal/settings.yaml").read_text(encoding="utf-8")
+    )
+    schema = yaml.safe_load(
+        (MODULE_ROOT / "workflow/internal/config.schema.yaml").read_text()
+    )
+    automatic = settings["resources"]["automatic"]
+    allowed = set(schema["properties"]["countries"]["items"]["enum"])
+    routed = {}
+    for source in automatic["stock_sources"]:
+        block = automatic[source]
+        assert "source" in block, source
+        codes = block.get("stock_country_codes", block.get("country_codes"))
+        for country in codes:
+            assert country not in routed, f"{country}: {routed.get(country)} and {source}"
+            routed[country] = source
+    assert set(routed) <= allowed
+    assert automatic["eurostat_stock"]["stock_country_codes"]["NOR"] == "NO"
 
 
 def test_extract_stock_selects_categories(activity):

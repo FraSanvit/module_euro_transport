@@ -1,10 +1,8 @@
-"""Unit tests for the Eurostat vehicle stock import and the source priority selection."""
+"""Unit tests for the Eurostat vehicle stock import."""
 
 import logging
 
-import pandas as pd
 import pytest
-from combine_national_tables import select_by_priority, source_switches
 from prepare_eurostat_road_stock import (
     derive_categories,
     read_stock_tables,
@@ -114,78 +112,15 @@ def test_car_and_bus_totals(derived):
 
 def test_to_national_maps_codes_and_drops_old_years(derived):
     """ISO codes are mapped (incl. "NO"), pre-1990 years are dropped."""
-    stock = to_national_stock(derived, {"AAA": "AA", "NOR": "NO"}, {}, "s")
+    stock = to_national_stock(derived, {"AAA": "AA", "NOR": "NO"}, "s")
     assert set(stock["country_id"]) == {"AAA", "NOR"}
     assert stock["year"].min() == 2019
     assert set(stock["unit"]) == {"vehicles"}
 
 
-def test_to_national_applies_exclusions(caplog, derived):
-    """Excluded country-categories are dropped and logged."""
-    with caplog.at_level(logging.WARNING):
-        stock = to_national_stock(
-            derived, {"MKD": "MK"}, {"MKD": ["heavy_duty"]}, "s"
-        )
-    assert value(stock, "MKD", "heavy_duty") is None
-    assert "excluded" in caplog.text
-
-
 def test_to_national_logs_missing_categories(caplog, derived):
     """Categories without data are logged as missing."""
     with caplog.at_level(logging.WARNING):
-        to_national_stock(derived, {"NOR": "NO"}, {}, "s")
+        to_national_stock(derived, {"NOR": "NO"}, "s")
     assert "NOR heavy_duty: no Eurostat stock" in caplog.text
     assert "NOR bus: no Eurostat stock" in caplog.text
-
-
-def _stock(country, year, category, stock, source):
-    return {
-        "country_id": country,
-        "year": year,
-        "vehicle_category": category,
-        "stock": float(stock),
-        "unit": "vehicles",
-        "source": source,
-    }
-
-
-@pytest.fixture
-def two_sources():
-    """JRC for 2020-2021, Eurostat for 2020-2023 (overlapping in 2020-2021)."""
-    rows = [_stock("AAA", y, "bus", 10, "JRC") for y in (2020, 2021)]
-    rows += [_stock("AAA", y, "bus", 20, "ES") for y in (2020, 2021, 2022, 2023)]
-    rows += [_stock("BBB", 2020, "bus", 5, "ES")]
-    return pd.DataFrame(rows)
-
-
-def test_priority_keeps_first_source(two_sources):
-    """Overlapping values come from the higher-priority source; gaps fall back."""
-    selected = select_by_priority(two_sources, ["JRC", "ES"])
-    aaa = selected[selected["country_id"] == "AAA"].set_index("year")["source"]
-    assert aaa.to_dict() == {2020: "JRC", 2021: "JRC", 2022: "ES", 2023: "ES"}
-    assert len(selected) == 5
-    assert not selected.duplicated(["country_id", "year", "vehicle_category"]).any()
-
-
-def test_priority_order_matters(two_sources):
-    """Reversing the priority picks the other source where both exist."""
-    selected = select_by_priority(two_sources, ["ES", "JRC"])
-    assert set(selected["source"]) == {"ES"}
-
-
-def test_priority_rejects_unknown_source(two_sources):
-    """Every source in the data must have a priority."""
-    with pytest.raises(ValueError, match="without a priority"):
-        select_by_priority(two_sources, ["JRC"])
-
-
-def test_source_switches_are_detected_and_logged(caplog, two_sources):
-    """A switch between consecutive years is reported with the ratio."""
-    with caplog.at_level(logging.WARNING):
-        selected = select_by_priority(two_sources, ["JRC", "ES"])
-    switches = source_switches(selected)
-    assert len(switches) == 1
-    row = switches.iloc[0]
-    assert (row["year"], row["prev_source"], row["source"]) == (2022, "JRC", "ES")
-    assert row["ratio"] == pytest.approx(2.0)
-    assert "source switches JRC -> ES at 2022" in caplog.text

@@ -59,14 +59,13 @@ rule prepare_eurostat_road_stock:
         "../envs/module.yaml"
     params:
         geo_codes=lambda wc: {
-            country: internal["resources"]["automatic"]["eurostat_stock"]["geo_codes"][
-                country
-            ]
-            for country in config["countries"]
+            country: internal["resources"]["automatic"]["eurostat_stock"][
+                "stock_country_codes"
+            ][country]
+            for country in stock_countries_from("eurostat_stock")
         },
-        exclude=internal["resources"]["automatic"]["eurostat_stock"]["exclude"],
         source=internal["resources"]["automatic"]["eurostat_stock"]["source"],
     message:
-        "Derive the road vehicle stock per vehicle category from Eurostat for the configured countries."
+        "Derive the road vehicle stock per vehicle category from Eurostat for the countries routed to it."
     script:
         "../scripts/prepare_eurostat_road_stock.py"

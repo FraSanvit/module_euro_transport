@@ -70,7 +70,7 @@ rule combine_jrc_idees_road_stock:
     input:
         stock=expand(
             "<resources>/automatic/jrc_idees/road_stock/{country}.parquet",
-            country=countries_from("jrc_idees"),
+            country=stock_countries_from("jrc_idees"),
         ),
     output:
         stock="<resources>/automatic/jrc_idees/road_stock.parquet",
@@ -80,7 +80,7 @@ rule combine_jrc_idees_road_stock:
         "../envs/module.yaml"
     params:
         metric="stock",
-        countries=countries_from("jrc_idees"),
+        countries=stock_countries_from("jrc_idees"),
     message:
         "Combine the JRC-IDEES 2021 road vehicle stock for all configured countries."
     script:

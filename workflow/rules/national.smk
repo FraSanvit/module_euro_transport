@@ -31,11 +31,7 @@ rule combine_national_road_stock:
     params:
         metric="stock",
         countries=config["countries"],
-        priority=[
-            internal["resources"]["automatic"][source]["source"]
-            for source in internal["resources"]["automatic"]["stock_priority"]
-        ],
     message:
-        "Combine the national road vehicle stock of all configured countries, keeping per value the highest-priority source."
+        "Combine the national road vehicle stock of all configured countries and sources."
     script:
         "../scripts/combine_national_tables.py"

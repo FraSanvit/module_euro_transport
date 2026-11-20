@@ -8,7 +8,7 @@ Sources (SDMX-CSV, number of vehicles):
 - `road_eqs_mopeds` (mot_nrg = TOTAL): motorcycles (MOTO) and mopeds (MOP).
 
 heavy_duty = LOR_GT3P5 + TRC and motorcycle = MOTO + MOP need both parts. Anything
-that cannot be derived, or is excluded in the settings, is left out and logged.
+that cannot be derived is left out and logged.
 """
 
 import logging
@@ -67,27 +67,12 @@ def derive_categories(tables: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
 
 def to_national_stock(
-    derived: pd.DataFrame,
-    geo_codes: dict[str, str],
-    exclude: dict[str, list[str]],
-    source: str,
+    derived: pd.DataFrame, geo_codes: dict[str, str], source: str
 ) -> pd.DataFrame:
-    """Keep the requested countries, drop excluded categories and validate."""
+    """Keep the requested countries, convert and validate."""
     to_iso = {geo: iso for iso, geo in geo_codes.items()}
     selected = derived[derived["geo"].isin(to_iso)].copy()
     selected["country_id"] = selected["geo"].map(to_iso)
-    for country, categories in exclude.items():
-        dropped = selected["country_id"].eq(country) & selected[
-            "vehicle_category"
-        ].isin(categories)
-        if dropped.any():
-            LOGGER.warning(
-                "%s: excluded %s (%d values, see settings).",
-                country,
-                categories,
-                dropped.sum(),
-            )
-        selected = selected[~dropped]
     for country in sorted(geo_codes):
         group = selected[selected["country_id"] == country]
         for category in VEHICLE_CATEGORIES:
@@ -117,10 +102,10 @@ def to_national_stock(
     return NationalStockSchema.validate(stock)
 
 
-def main(paths, geo_codes, exclude, source, output_path):
+def main(paths, geo_codes, source, output_path):
     """Read the datasets, derive categories and write parquet."""
     derived = derive_categories(read_stock_tables(paths))
-    to_national_stock(derived, geo_codes, exclude, source).to_parquet(
+    to_national_stock(derived, geo_codes, source).to_parquet(
         output_path, index=False
     )
 
@@ -134,7 +119,6 @@ if __name__ == "__main__":
     main(
         paths=dict(snakemake.input),  # noqa: F821
         geo_codes=snakemake.params.geo_codes,  # noqa: F821
-        exclude=snakemake.params.exclude,  # noqa: F821
         source=snakemake.params.source,  # noqa: F821
         output_path=snakemake.output.stock,  # noqa: F821
     )

@@ -4,18 +4,21 @@ import pandas as pd
 
 stock = pd.read_parquet(snakemake.input.stock)  # noqa: F821
 countries = snakemake.params.countries  # noqa: F821
-EU = {"BEL", "NLD", "LUX"}
-JRC, EUROSTAT = "JRC-IDEES-2021 v1", "Eurostat road_eqs"
+# One stock source per country. CHE (BFS) and GBR (DfT) are not implemented yet.
+SOURCES = {
+    "BEL": "JRC-IDEES-2021 v1",
+    "NLD": "JRC-IDEES-2021 v1",
+    "LUX": "JRC-IDEES-2021 v1",
+    "NOR": "Eurostat road_eqs",
+}
 
-assert set(stock["country_id"]) == set(countries)
+assert set(stock["country_id"]) == set(SOURCES) & set(countries)
 assert set(stock["unit"]) == {"vehicles"}
 assert not stock.duplicated(["country_id", "year", "vehicle_category"]).any()
-
-# Priority: JRC-IDEES wherever it has a value (EU, 2000-2021), Eurostat otherwise.
-eu = stock[stock["country_id"].isin(EU)]
-assert set(eu.loc[eu["year"].between(2000, 2021), "source"]) == {JRC}
-assert set(eu.loc[eu["year"] > 2021, "source"]) <= {EUROSTAT}
-assert set(stock.loc[~stock["country_id"].isin(EU), "source"]) == {EUROSTAT}
+for country, source in SOURCES.items():
+    assert set(stock.loc[stock["country_id"] == country, "source"]) == {source}
+jrc = stock[stock["source"] == "JRC-IDEES-2021 v1"]
+assert set(jrc["year"]) == set(range(2000, 2022))
 
 # Plausibility: more passenger cars than heavy-duty vehicles wherever both exist.
 wide = stock.pivot_table(
