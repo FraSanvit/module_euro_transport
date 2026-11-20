@@ -155,15 +155,20 @@ def test_combine_sorts_and_rejects_duplicates(activity):
 
 
 def test_settings_country_codes_match_config_schema():
-    """Every allowed country has a JRC code, and Greece maps to EL."""
+    """Each allowed country has exactly one source; JRC-IDEES covers the EU27."""
     settings = yaml.safe_load(
         (MODULE_ROOT / "workflow/internal/settings.yaml").read_text()
     )
     schema = yaml.safe_load(
         (MODULE_ROOT / "workflow/internal/config.schema.yaml").read_text()
     )
-    codes = settings["resources"]["automatic"]["jrc_idees"]["country_codes"]
+    automatic = settings["resources"]["automatic"]
+    jrc = automatic["jrc_idees"]["country_codes"]
+    eurostat = automatic["eurostat"]["country_codes"]
     allowed = schema["properties"]["countries"]["items"]["enum"]
-    assert sorted(codes) == sorted(allowed)
-    assert len(codes) == 27
-    assert codes["GRC"] == "EL"
+    assert not set(jrc) & set(eurostat), "JRC-IDEES has priority: no overlap"
+    assert sorted({*jrc, *eurostat}) == sorted(allowed)
+    assert len(jrc) == 27
+    assert jrc["GRC"] == "EL"
+    assert eurostat["NOR"] == "NO"  # not a YAML boolean
+    assert set(automatic["eurostat"]["principle"]) == set(eurostat)

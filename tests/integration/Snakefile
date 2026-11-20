@@ -7,38 +7,42 @@ configfile: workflow.source_path("./test_config.yaml")
 # `config`: specifies the module configuration.
 # `pathvars:` helps you re-wire where the module places files.
 module module_euro_transport:
-    snakefile: "../../workflow/Snakefile"
-    config: config["module_euro_transport"]
     pathvars:
         # Redirect intermediate files that are internal to the module
         logs="resources/module/logs",
         resources="resources/module/resources",
-        results="resources/module/results"
+        results="resources/module/results",
+    snakefile:
+        "../../workflow/Snakefile"
+    config:
+        config["module_euro_transport"]
 
 
 # rename all module rules with a prefix, to avoid naming conflicts.
 use rule * from module_euro_transport as module_euro_transport_*
 
 
-rule check_jrc_idees_road_vkm:
-    message: "Check the combined JRC-IDEES road vehicle-km for the test countries."
-    params:
-        countries=config["module_euro_transport"]["countries"]
+rule check_national_road_vkm:
     input:
-        vkm="resources/module/resources/automatic/jrc_idees/road_vkm.parquet"
+        vkm="resources/module/resources/automatic/national_road_vkm.parquet",
     output:
-        "results/checks/jrc_idees_road_vkm.done"
+        "results/checks/national_road_vkm.done",
     log:
-        "resources/module/logs/check_jrc_idees_road_vkm.log"
+        "resources/module/logs/check_national_road_vkm.log",
     conda:
         "../../workflow/envs/module.yaml"
+    params:
+        countries=config["module_euro_transport"]["countries"],
+    message:
+        "Check the combined national road vehicle-km for the test countries."
     script:
-        "scripts/check_jrc_idees_road_vkm.py"
+        "scripts/check_national_road_vkm.py"
 
 
 # Request something from the module
 rule all:
-    message: "A generic test case for your module."
     default_target: True
     input:
-        "results/checks/jrc_idees_road_vkm.done"
+        "results/checks/national_road_vkm.done",
+    message:
+        "A generic test case for your module."

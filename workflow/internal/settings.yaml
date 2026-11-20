@@ -34,3 +34,17 @@ resources:
         SWE: SE
         SVN: SI
         SVK: SK
+    eurostat:
+      # Eurostat dissemination API, full dataset as SDMX-CSV. Not versioned:
+      # the "LAST UPDATE" column of each download is logged.
+      url: "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{dataset}/?format=SDMX-CSV&compressed=false"
+      datasets: [road_tf_vehmov, road_tf_road]
+      source: "Eurostat road_tf_vehmov/road_tf_road"
+      # Only countries not covered by JRC-IDEES (JRC-IDEES has priority).
+      # ISO 3166-1 alpha-3 -> Eurostat geo code. Quote "NO": unquoted it is a YAML boolean.
+      country_codes:
+        GBR: "UK"
+        NOR: "NO"
+      principle:
+        GBR: territorial
+        NOR: territorial
