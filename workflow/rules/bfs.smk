@@ -1,4 +1,4 @@
-"""Rules to import national road vehicle-km for Switzerland from BFS."""
+"""Rules to import national road vehicle-km and vehicle stock for Switzerland from BFS."""
 
 
 rule download_bfs:
@@ -7,7 +7,7 @@ rule download_bfs:
     log:
         "<logs>/download_bfs/{table}.log",
     wildcard_constraints:
-        table="freight|passenger",
+        table="freight|passenger|stock|mopeds",
     conda:
         "../envs/module.yaml"
     params:
@@ -17,7 +17,7 @@ rule download_bfs:
             ]
         ),
     message:
-        "Download the BFS {wildcards.table} road traffic table."
+        "Download the BFS {wildcards.table} table."
     shell:
         'curl -sSfL --retry 3 -o {output.xlsx} "{params.url}" 2> {log}'
 
@@ -40,3 +40,22 @@ rule prepare_bfs_road_vkm:
         "Derive road vehicle-km per vehicle category for Switzerland from BFS."
     script:
         "../scripts/prepare_bfs_road_vkm.py"
+
+
+rule prepare_bfs_road_stock:
+    input:
+        stock="<resources>/automatic/bfs/raw/stock.xlsx",
+        mopeds="<resources>/automatic/bfs/raw/mopeds.xlsx",
+    output:
+        stock="<resources>/automatic/bfs/road_stock.parquet",
+    log:
+        "<logs>/prepare_bfs_road_stock.log",
+    conda:
+        "../envs/module.yaml"
+    params:
+        country_codes=internal["resources"]["automatic"]["bfs"]["country_codes"],
+        source=internal["resources"]["automatic"]["bfs"]["stock_source"],
+    message:
+        "Derive the road vehicle stock per vehicle category for Switzerland from BFS."
+    script:
+        "../scripts/prepare_bfs_road_stock.py"

@@ -41,6 +41,7 @@ include: "rules/national.smk"
 workflow.source_path("scripts/_schemas.py")
 workflow.source_path("scripts/_jrc_idees.py")
 workflow.source_path("scripts/_eurostat.py")
+workflow.source_path("scripts/_bfs.py")
 
 
 rule all:

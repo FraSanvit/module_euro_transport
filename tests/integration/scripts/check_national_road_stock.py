@@ -4,12 +4,13 @@ import pandas as pd
 
 stock = pd.read_parquet(snakemake.input.stock)  # noqa: F821
 countries = snakemake.params.countries  # noqa: F821
-# One stock source per country. CHE (BFS) and GBR (DfT) are not implemented yet.
+# One stock source per country. GBR (DfT) is not implemented yet.
 SOURCES = {
     "BEL": "JRC-IDEES-2021 v1",
     "NLD": "JRC-IDEES-2021 v1",
     "LUX": "JRC-IDEES-2021 v1",
     "NOR": "Eurostat road_eqs",
+    "CHE": "BFS cc-d-11.03.02.01.03/je-d-11.03.02.01.04",
 }
 
 assert set(stock["country_id"]) == set(SOURCES) & set(countries)

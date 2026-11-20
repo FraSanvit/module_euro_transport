@@ -6,15 +6,13 @@ import numpy as np
 import pandas as pd
 import pandera.errors
 import pytest
+from _bfs import find_year_columns, normalise_label, parse_year
 from prepare_bfs_road_vkm import (
     FREIGHT_ROWS,
     PASSENGER_ROWS,
     check_totals,
     derive_categories,
-    find_year_columns,
     main,
-    normalise_label,
-    parse_year,
     read_table,
     select_rows,
     tidy_sheet,

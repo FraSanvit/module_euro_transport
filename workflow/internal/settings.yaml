@@ -62,7 +62,18 @@ resources:
           # Personenverkehr", Stand Oktober 2026.
           bfs_number: je-d-11.04.01.01
           asset_id: 36851390
+        stock:
+          # cc-d-11.03.02.01.03 "Strassenfahrzeugbestand nach Fahrzeuggruppe und
+          # Fahrzeugart" (BFS/ASTRA, stock at 30 September), Stand Oktober 2026.
+          bfs_number: cc-d-11.03.02.01.03
+          asset_id: 36852326
+        mopeds:
+          # je-d-11.03.02.01.04 "Bestand der Motorfahrraeder nach Kanton (inkl.
+          # schnelle E-Bikes)", 1970-2025, Stand Mai 2026.
+          bfs_number: je-d-11.03.02.01.04
+          asset_id: 36613609
       source: "BFS je-d-11.04.01.01/je-d-11.05.01.01"
+      stock_source: "BFS cc-d-11.03.02.01.03/je-d-11.03.02.01.04"
       # ISO 3166-1 alpha-3 -> BFS country code (BFS only covers Switzerland).
       country_codes:
         CHE: CH
@@ -79,4 +90,4 @@ resources:
         NOR: "NO"
     # One vehicle stock source per country. Each source lists its countries in
     # `stock_country_codes`, or else in `country_codes` (shared with vehicle-km).
-    stock_sources: [jrc_idees, eurostat_stock]
+    stock_sources: [jrc_idees, eurostat_stock, bfs]
