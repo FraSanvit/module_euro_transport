@@ -6,9 +6,10 @@ required: [countries]
 properties:
   countries:
     description: >-
-      Countries to process, as ISO 3166-1 alpha-3 codes. EU27 countries use
-      JRC-IDEES 2021; GBR and NOR use Eurostat; CHE uses the Swiss Federal
-      Statistical Office (BFS).
+      Countries to process, as ISO 3166-1 alpha-3 codes. Vehicle-km: EU27 from
+      JRC-IDEES 2021, GBR and NOR from Eurostat, CHE from the Swiss Federal
+      Statistical Office (BFS). Vehicle stock: EU27 from JRC-IDEES 2021, NOR from
+      Eurostat, CHE from BFS, GBR from the UK Department for Transport (DfT).
     type: array
     minItems: 1
     uniqueItems: true
