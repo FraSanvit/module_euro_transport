@@ -1,8 +1,9 @@
 # Example configuration of this module.
 # Countries to process, as ISO 3166-1 alpha-3 codes.
-# Sources (one per country and metric):
-#   vehicle-km:    EU27 JRC-IDEES 2021; GBR, NOR Eurostat; CHE BFS.
-#   vehicle stock: EU27 JRC-IDEES 2021; NOR Eurostat; CHE BFS; GBR DfT.
+# Sources (one per country, metric and vehicle category):
+#   vehicle-km:    EU27 JRC-IDEES 2021; GBR, NOR Eurostat; CHE BFS;
+#                  MKD Eurostat (cars, buses) + MAKSTAT (heavy-duty).
+#   vehicle stock: EU27 JRC-IDEES 2021; NOR Eurostat; CHE BFS; GBR DfT; MKD MAKSTAT.
 countries:
   [AUT, BEL, BGR, CYP, CZE, DEU, DNK, ESP, EST, FIN, FRA, GRC, HRV, HUN, IRL, ITA,
-   LTU, LUX, LVA, MLT, NLD, POL, PRT, ROU, SVK, SVN, SWE, GBR, NOR, CHE]
+   LTU, LUX, LVA, MLT, NLD, POL, PRT, ROU, SVK, SVN, SWE, GBR, NOR, CHE, MKD]

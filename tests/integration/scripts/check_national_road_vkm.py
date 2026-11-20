@@ -39,5 +39,18 @@ assert set(bfs["vehicle_category"]) == {
 che_hdv = bfs.query("vehicle_category == 'heavy_duty' and year == 2019")["vkm"]
 assert 2.0e9 < che_hdv.item() < 2.5e9
 
+# MKD: heavy-duty from MAKSTAT (nationality), cars and buses from Eurostat.
+mkd = vkm[vkm["country_id"] == "MKD"].set_index("vehicle_category")
+assert set(mkd.index) == {"heavy_duty", "passenger_car", "bus"}
+assert set(mkd.loc["heavy_duty", "source"]) == {"MAKSTAT 560_Trans_MK_T39"}
+assert set(mkd.loc["heavy_duty", "principle"]) == {"nationality"}
+assert mkd.loc["heavy_duty", "year"].min() == 2004
+assert set(mkd.loc[["passenger_car", "bus"], "source"]) == {
+    "Eurostat road_tf_vehmov/road_tf_road"
+}
+# North Macedonian goods vehicles 2019: 835 Mvkm (MAKSTAT 560_Trans_MK_T39).
+mkd_hdv = mkd.reset_index().query("vehicle_category == 'heavy_duty' and year == 2019")
+assert mkd_hdv["vkm"].item() == 835e6
+
 with open(snakemake.output[0], "w") as f:  # noqa: F821
     f.write("ok\n")

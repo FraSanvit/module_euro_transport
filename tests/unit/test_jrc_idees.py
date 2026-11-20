@@ -8,7 +8,7 @@ import pandera.errors
 import pytest
 import yaml
 from _jrc_idees import category_codes
-from _schemas import NationalStockSchema
+from _schemas import VEHICLE_CATEGORIES, NationalStockSchema
 from combine_national_tables import combine, log_missing_countries
 from prepare_jrc_idees_road_stock import extract_stock
 from prepare_jrc_idees_road_vkm import extract_vkm, read_road_activity, tidy_activity_sheet
@@ -176,7 +176,10 @@ def test_combine_sorts_and_rejects_duplicates(activity):
 
 
 def test_settings_country_codes_match_config_schema():
-    """Each allowed country has exactly one source; JRC-IDEES covers the EU27."""
+    """Each allowed country and category has one vehicle-km source; JRC covers the EU27.
+
+    A country can be split across sources only by listing `vkm_categories`.
+    """
     settings = yaml.safe_load(
         (MODULE_ROOT / "workflow/internal/settings.yaml").read_text(encoding="utf-8")
     )
@@ -190,10 +193,16 @@ def test_settings_country_codes_match_config_schema():
         if isinstance(block, dict) and "country_codes" in block
     }
     allowed = schema["properties"]["countries"]["items"]["enum"]
-    sources = sorted(routed)
-    for i, a in enumerate(sources):
-        for b in sources[i + 1 :]:
-            assert not routed[a] & routed[b], f"{a} and {b} overlap"
+    owner = {}
+    for source, countries in routed.items():
+        split = automatic[source].get("vkm_categories", {})
+        assert set(split) <= countries, source
+        for country in countries:
+            for category in split.get(country, VEHICLE_CATEGORIES):
+                assert category in VEHICLE_CATEGORIES, (source, category)
+                key = (country, category)
+                assert key not in owner, f"{key}: {owner.get(key)} and {source}"
+                owner[key] = source
     assert sorted(set().union(*routed.values())) == sorted(allowed)
     for source, block in automatic.items():
         if isinstance(block, dict) and "principle" in block:

@@ -45,9 +45,15 @@ resources:
       country_codes:
         GBR: "UK"
         NOR: "NO"
+        MKD: MK
       principle:
         GBR: territorial
         NOR: territorial
+        MKD: territorial
+      # Vehicle categories taken from this source where not all five (one source
+      # per country and category). MKD heavy-duty comes from MAKSTAT.
+      vkm_categories:
+        MKD: [passenger_car, bus]
     bfs:
       # Swiss Federal Statistical Office (BFS), one Excel table each for freight and
       # passenger road traffic. Pinned DAM asset IDs: a new BFS release gets a new ID.
@@ -101,6 +107,32 @@ resources:
       # GB = Great Britain, without Northern Ireland).
       stock_country_codes:
         GBR: GB
+    makstat:
+      # State Statistical Office of North Macedonia (MAKSTAT), PX-Web API. The full
+      # table is requested as CSV (POST, no filter). Not versioned: the table's
+      # "updated" date from the folder listing is logged.
+      url: "https://makstat.stat.gov.mk/PXWeb/api/v1/en/MakStat/Transport/{folder}/{table_id}"
+      tables:
+        freight:
+          # "Passenger and freight transport, by years": freight vehicle-km of
+          # domestic goods vehicles >= 3.5 t load capacity (road freight survey).
+          folder: PatenTransport
+          table_id: 560_Trans_MK_T39_ml.px
+        stock:
+          # "Registered road motor vehicles and trailers by years, by
+          # municipalities, number" (stock at 31 December).
+          folder: RegistriraniVozila
+          table_id: 150_Trans_regi_veh_by_type_mun_ml.px
+      source: "MAKSTAT 560_Trans_MK_T39"
+      stock_source: "MAKSTAT 150_Trans_regi_veh_by_type_mun"
+      # ISO 3166-1 alpha-3 -> MAKSTAT row label of the national total.
+      country_codes:
+        MKD: REPUBLIC OF MACEDONIA
+      # Domestic vehicles only, in and outside the country.
+      principle:
+        MKD: nationality
+      vkm_categories:
+        MKD: [heavy_duty]
     # One vehicle stock source per country. Each source lists its countries in
     # `stock_country_codes`, or else in `country_codes` (shared with vehicle-km).
-    stock_sources: [jrc_idees, eurostat_stock, bfs, dft]
+    stock_sources: [jrc_idees, eurostat_stock, bfs, dft, makstat]

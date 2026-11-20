@@ -12,6 +12,7 @@ SOURCES = {
     "NOR": "Eurostat road_eqs",
     "CHE": "BFS cc-d-11.03.02.01.03/je-d-11.03.02.01.04",
     "GBR": "DfT VEH0101",
+    "MKD": "MAKSTAT 150_Trans_regi_veh_by_type_mun",
 }
 
 assert set(stock["country_id"]) == set(SOURCES) & set(countries)
@@ -21,6 +22,10 @@ for country, source in SOURCES.items():
     assert set(stock.loc[stock["country_id"] == country, "source"]) == {source}
 jrc = stock[stock["source"] == "JRC-IDEES-2021 v1"]
 assert set(jrc["year"]) == set(range(2000, 2022))
+# MKD: goods vehicles are not split by weight and motor-cycles exclude mopeds.
+mkd = stock[stock["country_id"] == "MKD"]
+assert set(mkd["vehicle_category"]) == {"passenger_car", "bus"}
+assert mkd["year"].min() == 2012
 
 # Plausibility: more passenger cars than heavy-duty vehicles wherever both exist.
 wide = stock.pivot_table(

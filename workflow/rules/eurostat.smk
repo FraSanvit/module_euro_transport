@@ -38,6 +38,7 @@ rule prepare_eurostat_road_vkm:
             for country in countries_from("eurostat")
         },
         principles=internal["resources"]["automatic"]["eurostat"]["principle"],
+        categories=internal["resources"]["automatic"]["eurostat"]["vkm_categories"],
         source=internal["resources"]["automatic"]["eurostat"]["source"],
     message:
         "Derive road vehicle-km per vehicle category from Eurostat for the configured non-EU countries."

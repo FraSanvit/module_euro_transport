@@ -158,6 +158,20 @@ def test_to_national_logs_missing_categories(caplog, derived):
     assert "heavy_duty" in caplog.text and "motorcycle" in caplog.text
 
 
+def test_to_national_keeps_listed_categories_only(caplog, derived):
+    """A country with listed categories keeps only those; others are not 'missing'."""
+    with caplog.at_level(logging.WARNING):
+        national = to_national_vkm(
+            derived,
+            {"NOR": "NO"},
+            {"NOR": "territorial"},
+            "s",
+            categories={"NOR": ["passenger_car"]},
+        )
+    assert set(national["vehicle_category"]) == {"passenger_car"}
+    assert "left missing" not in caplog.text
+
+
 def test_to_national_raises_for_country_without_data(derived):
     """A requested country with no data at all is an error."""
     with pytest.raises(ValueError, match="ZZZ"):

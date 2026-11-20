@@ -7,7 +7,8 @@ Sources (SDMX-CSV, million vehicle-km):
   road tractors, used for the heavy/light split.
 
 Categories that cannot be derived for a country-year are left out and logged.
-No values are estimated or filled.
+No values are estimated or filled. Countries listed in `categories` keep only those
+categories (the others come from another source).
 """
 
 import logging
@@ -98,18 +99,26 @@ def to_national_vkm(
     country_codes: dict[str, str],
     principles: dict[str, str],
     source: str,
+    categories: dict[str, list[str]] | None = None,
 ) -> pd.DataFrame:
     """Select the requested countries and convert to the national vehicle-km schema.
 
     `country_codes` maps ISO alpha-3 -> Eurostat geo code for the countries to keep.
+    `categories` maps ISO alpha-3 -> vehicle categories to keep (default: all).
     Raises if a requested country has no data at all.
     """
+    categories = categories or {}
     to_iso = {geo: iso for iso, geo in country_codes.items()}
     selected = derived[derived["geo"].isin(to_iso)].copy()
     empty = sorted(set(country_codes) - set(selected["geo"].map(to_iso)))
     if empty:
         raise ValueError(f"No Eurostat road vehicle-km for {empty}.")
     selected["country_id"] = selected["geo"].map(to_iso)
+    allowed = selected["country_id"].map(
+        lambda country: categories.get(country, VEHICLE_CATEGORIES)
+    )
+    keep = [cat in cats for cat, cats in zip(selected["vehicle_category"], allowed)]
+    selected = selected[keep]
     for country, group in selected.groupby("country_id"):
         for category, cat_group in group.groupby("vehicle_category"):
             LOGGER.info(
@@ -120,7 +129,8 @@ def to_national_vkm(
                 cat_group["year"].max(),
                 len(cat_group),
             )
-        missing = sorted(set(VEHICLE_CATEGORIES) - set(group["vehicle_category"]))
+        wanted = categories.get(country, VEHICLE_CATEGORIES)
+        missing = sorted(set(wanted) - set(group["vehicle_category"]))
         if missing:
             LOGGER.warning("%s: no Eurostat data for %s (left missing).", country, missing)
     national = pd.DataFrame(
@@ -149,7 +159,9 @@ def log_flags(table: pd.DataFrame, geos: list[str], dataset: str) -> None:
         LOGGER.info("%s %s: %d values flagged '%s'", dataset, geo, len(group), flag)
 
 
-def main(vehmov_path, road_path, country_codes, principles, source, output_path):
+def main(
+    vehmov_path, road_path, country_codes, principles, categories, source, output_path
+):
     """Read both datasets, derive categories and write parquet."""
     vehmov = read_sdmx_csv(vehmov_path, "regisveh", "TERNAT_REG")
     road = read_sdmx_csv(road_path, "tra_infr", "TOTAL")
@@ -159,7 +171,7 @@ def main(vehmov_path, road_path, country_codes, principles, source, output_path)
     log_flags(vehmov, geos, "road_tf_vehmov")
     log_flags(road, geos, "road_tf_road")
     derived = derive_categories(vehmov, road)
-    national = to_national_vkm(derived, country_codes, principles, source)
+    national = to_national_vkm(derived, country_codes, principles, source, categories)
     national.to_parquet(output_path, index=False)
 
 
@@ -174,6 +186,7 @@ if __name__ == "__main__":
         road_path=snakemake.input.road_tf_road,  # noqa: F821
         country_codes=snakemake.params.country_codes,  # noqa: F821
         principles=snakemake.params.principles,  # noqa: F821
+        categories=snakemake.params.categories,  # noqa: F821
         source=snakemake.params.source,  # noqa: F821
         output_path=snakemake.output.vkm,  # noqa: F821
     )
