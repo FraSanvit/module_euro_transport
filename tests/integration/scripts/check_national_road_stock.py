@@ -13,6 +13,9 @@ SOURCES = {
     "CHE": "BFS cc-d-11.03.02.01.03/je-d-11.03.02.01.04",
     "GBR": "DfT VEH0101",
     "MKD": "MAKSTAT 150_Trans_regi_veh_by_type_mun",
+    "BIH": "Eurostat road_eqs",
+    "ISL": "Statistics Iceland SAM03105",
+    "XKX": "ASK tr05",
 }
 
 assert set(stock["country_id"]) == set(SOURCES) & set(countries)
@@ -26,6 +29,14 @@ assert set(jrc["year"]) == set(range(2000, 2022))
 mkd = stock[stock["country_id"] == "MKD"]
 assert set(mkd["vehicle_category"]) == {"passenger_car", "bus"}
 assert mkd["year"].min() == 2012
+# BIH: all five categories; ISL: all five from 1999; XKX: no motorcycles, goods
+# vehicles 2018-2019 excluded (swapped rows in the source).
+assert stock.query("country_id == 'BIH'")["vehicle_category"].nunique() == 5
+isl = stock[stock["country_id"] == "ISL"]
+assert isl["vehicle_category"].nunique() == 5 and isl["year"].min() == 1999
+xkx = stock[stock["country_id"] == "XKX"]
+assert "motorcycle" not in set(xkx["vehicle_category"])
+assert not xkx.query("vehicle_category == 'heavy_duty' and year in [2018, 2019]").size
 
 # Plausibility: more passenger cars than heavy-duty vehicles wherever both exist.
 wide = stock.pivot_table(

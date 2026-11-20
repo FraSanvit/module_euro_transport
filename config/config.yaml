@@ -3,7 +3,10 @@
 # Sources (one per country, metric and vehicle category):
 #   vehicle-km:    EU27 JRC-IDEES 2021; GBR, NOR Eurostat; CHE BFS;
 #                  MKD Eurostat (cars, buses) + MAKSTAT (heavy-duty).
-#   vehicle stock: EU27 JRC-IDEES 2021; NOR Eurostat; CHE BFS; GBR DfT; MKD MAKSTAT.
+#                  ALB, BIH, MNE, SRB, XKX, ISL: none (left missing).
+#   vehicle stock: EU27 JRC-IDEES 2021; NOR, ALB, BIH, MNE, SRB Eurostat; CHE BFS;
+#                  GBR DfT; MKD MAKSTAT; ISL Statistics Iceland; XKX ASK.
 countries:
   [AUT, BEL, BGR, CYP, CZE, DEU, DNK, ESP, EST, FIN, FRA, GRC, HRV, HUN, IRL, ITA,
-   LTU, LUX, LVA, MLT, NLD, POL, PRT, ROU, SVK, SVN, SWE, GBR, NOR, CHE, MKD]
+   LTU, LUX, LVA, MLT, NLD, POL, PRT, ROU, SVK, SVN, SWE, GBR, NOR, CHE, MKD,
+   ALB, BIH, MNE, SRB, XKX, ISL]

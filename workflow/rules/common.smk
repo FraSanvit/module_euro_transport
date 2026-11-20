@@ -21,9 +21,9 @@ def national_source_tables(wildcards):
     return tables
 
 
-def makstat_url(table):
-    """PX-Web API URL of a MAKSTAT table."""
-    block = internal["resources"]["automatic"]["makstat"]
+def pxweb_url(provider, table):
+    """PX-Web API URL of a table of a national statistics office."""
+    block = internal["resources"]["automatic"][provider]
     return block["url"].format(**block["tables"][table])
 
 
@@ -42,6 +42,8 @@ def national_stock_tables(wildcards):
         "bfs": rules.prepare_bfs_road_stock.output.stock,
         "dft": rules.prepare_dft_road_stock.output.stock,
         "makstat": rules.prepare_makstat_road_stock.output.stock,
+        "hagstofa": rules.prepare_hagstofa_road_stock.output.stock,
+        "ask": rules.prepare_ask_road_stock.output.stock,
     }
     return [
         outputs[source]

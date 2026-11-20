@@ -66,6 +66,7 @@ rule prepare_eurostat_road_stock:
             for country in stock_countries_from("eurostat_stock")
         },
         source=internal["resources"]["automatic"]["eurostat_stock"]["source"],
+        exclude=internal["resources"]["automatic"]["eurostat_stock"].get("exclude", {}),
     message:
         "Derive the road vehicle stock per vehicle category from Eurostat for the countries routed to it."
     script:

@@ -14,7 +14,7 @@ Years where the total is not the sum of hire-or-reward and own-account km
 import logging
 
 import pandas as pd
-from _makstat import log_updated, read_px_csv
+from _pxweb import log_updated, read_px_csv
 from _schemas import NationalVkmSchema
 
 LOGGER = logging.getLogger(__name__)

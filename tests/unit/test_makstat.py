@@ -5,7 +5,7 @@ import logging
 
 import pandas as pd
 import pytest
-from _makstat import log_updated, read_px_csv
+from _pxweb import log_updated, read_px_csv
 from prepare_makstat_road_stock import (
     TYPES,
     check_total,

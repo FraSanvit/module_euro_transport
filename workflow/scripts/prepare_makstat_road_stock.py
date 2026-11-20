@@ -14,7 +14,7 @@ import logging
 import re
 
 import pandas as pd
-from _makstat import log_updated, read_px_csv
+from _pxweb import log_updated, read_px_csv
 from _schemas import VEHICLE_CATEGORIES, NationalStockSchema
 
 LOGGER = logging.getLogger(__name__)

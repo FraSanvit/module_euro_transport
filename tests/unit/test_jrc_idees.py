@@ -203,7 +203,10 @@ def test_settings_country_codes_match_config_schema():
                 key = (country, category)
                 assert key not in owner, f"{key}: {owner.get(key)} and {source}"
                 owner[key] = source
-    assert sorted(set().union(*routed.values())) == sorted(allowed)
+    with_vkm = set().union(*routed.values())
+    without_vkm = set(automatic["vkm_not_available"])
+    assert not with_vkm & without_vkm
+    assert sorted(with_vkm | without_vkm) == sorted(allowed)
     for source, block in automatic.items():
         if isinstance(block, dict) and "principle" in block:
             assert set(block["principle"]) == routed[source], source
@@ -233,6 +236,14 @@ def test_settings_one_stock_source_per_country():
             routed[country] = source
     assert set(routed) == allowed
     assert automatic["eurostat_stock"]["stock_country_codes"]["NOR"] == "NO"
+    for source in automatic["stock_sources"]:
+        block = automatic[source]
+        codes = block.get("stock_country_codes", block.get("country_codes"))
+        for country, categories in block.get("exclude", {}).items():
+            assert country in codes, (source, country)
+            for category, years in categories.items():
+                assert category in VEHICLE_CATEGORIES, (source, category)
+                assert years == "all" or all(isinstance(y, int) for y in years)
 
 
 def test_extract_stock_selects_categories(activity):

@@ -94,6 +94,23 @@ resources:
       # Quote "NO": unquoted it is a YAML boolean.
       stock_country_codes:
         NOR: "NO"
+        ALB: AL
+        BIH: BA
+        MNE: ME
+        SRB: RS
+      # Country -> category -> years (or "all") not used because the Eurostat
+      # values are unreliable; left missing and logged.
+      exclude:
+        # Lorries > 3.5 t = all goods vehicles in 2014-2015; 2023 implausible
+        # (8,474 against ~2,800); light goods vehicles 2014-2015 nearly empty.
+        MNE:
+          heavy_duty: [2014, 2015, 2023]
+          light_duty: [2014, 2015]
+        # Goods vehicles <= 3.5 t exclude ~50k mixed transport vehicles (INSTAT
+        # ATP); motorcycles/mopeds split erratic from 2020.
+        ALB:
+          light_duty: all
+          motorcycle: all
     dft:
       # Department for Transport (DfT) table VEH0101 "Vehicles at the end of the
       # quarter by licence status and body type" (OpenDocument spreadsheet), last
@@ -133,6 +150,38 @@ resources:
         MKD: nationality
       vkm_categories:
         MKD: [heavy_duty]
+    hagstofa:
+      # Statistics Iceland, PX-Web API. Not versioned: "updated" is logged.
+      url: "https://px.hagstofa.is/pxen/api/v1/en/{folder}/{table_id}"
+      tables:
+        stock:
+          # SAM03105 "Registered motor vehicles" (31 December, vehicles in use).
+          folder: Umhverfi/5_samgongur/3_okutaekiogvegir/1_okutaeki
+          table_id: SAM03105.px
+      source: "Statistics Iceland SAM03105"
+      stock_country_codes:
+        ISL: IS
+    ask:
+      # Kosovo Agency of Statistics (ASK), PX-Web API. Not versioned: "updated" is
+      # logged.
+      url: "https://askdata.rks-gov.net/api/v1/en/ASKdata/{folder}/{table_id}"
+      tables:
+        stock:
+          # tr05 "Registered motor and non motor vehicles".
+          folder: Transport/Annual%20indicators
+          table_id: tr05.px
+      source: "ASK tr05"
+      stock_country_codes:
+        XKX: XK
+      # Goods vehicle rows >= 3.5 t and < 3.5 t are swapped in 2018-2019 (also in
+      # the ASK 2023 publication); not corrected, left missing.
+      exclude:
+        XKX:
+          heavy_duty: [2018, 2019]
+          light_duty: [2018, 2019]
+    # Countries without a reliable national road vehicle-km source (left missing,
+    # filled in the gap-filling step).
+    vkm_not_available: [ALB, BIH, MNE, SRB, XKX, ISL]
     # One vehicle stock source per country. Each source lists its countries in
     # `stock_country_codes`, or else in `country_codes` (shared with vehicle-km).
-    stock_sources: [jrc_idees, eurostat_stock, bfs, dft, makstat]
+    stock_sources: [jrc_idees, eurostat_stock, bfs, dft, makstat, hagstofa, ask]

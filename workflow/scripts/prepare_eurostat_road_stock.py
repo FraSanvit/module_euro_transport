@@ -8,13 +8,15 @@ Sources (SDMX-CSV, number of vehicles):
 - `road_eqs_mopeds` (mot_nrg = TOTAL): motorcycles (MOTO) and mopeds (MOP).
 
 heavy_duty = LOR_GT3P5 + TRC and motorcycle = MOTO + MOP need both parts. Anything
-that cannot be derived is left out and logged.
+that cannot be derived is left out and logged. Country-category-years listed as
+unreliable in settings (`exclude`) are dropped and logged.
 """
 
 import logging
 
 import pandas as pd
 from _eurostat import read_sdmx
+from _national import drop_excluded
 from _schemas import VEHICLE_CATEGORIES, NationalStockSchema
 
 LOGGER = logging.getLogger(__name__)
@@ -102,12 +104,11 @@ def to_national_stock(
     return NationalStockSchema.validate(stock)
 
 
-def main(paths, geo_codes, source, output_path):
-    """Read the datasets, derive categories and write parquet."""
+def main(paths, geo_codes, source, exclude, output_path):
+    """Read the datasets, derive categories, drop unreliable values and write parquet."""
     derived = derive_categories(read_stock_tables(paths))
-    to_national_stock(derived, geo_codes, source).to_parquet(
-        output_path, index=False
-    )
+    stock = drop_excluded(to_national_stock(derived, geo_codes, source), exclude)
+    stock.to_parquet(output_path, index=False)
 
 
 if __name__ == "__main__":
@@ -120,5 +121,6 @@ if __name__ == "__main__":
         paths=dict(snakemake.input),  # noqa: F821
         geo_codes=snakemake.params.geo_codes,  # noqa: F821
         source=snakemake.params.source,  # noqa: F821
+        exclude=snakemake.params.exclude,  # noqa: F821
         output_path=snakemake.output.stock,  # noqa: F821
     )

@@ -1,4 +1,4 @@
-"""Shared helpers to read MAKSTAT (North Macedonia) PX-Web downloads."""
+"""Shared helpers to read PX-Web downloads (MAKSTAT, Statistics Iceland, ASK)."""
 
 import json
 import logging
@@ -34,5 +34,5 @@ def log_updated(listing_path, table_id: str) -> str:
     if len(entries) != 1:
         raise KeyError(f"{listing_path}: table {table_id} not listed.")
     updated = entries[0].get("updated", "unknown")
-    LOGGER.info("MAKSTAT %s: last updated %s", table_id, updated)
+    LOGGER.info("PX-Web table %s: last updated %s", table_id, updated)
     return updated

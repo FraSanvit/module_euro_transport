@@ -32,7 +32,7 @@ include: "rules/jrc_idees.smk"
 include: "rules/eurostat.smk"
 include: "rules/bfs.smk"
 include: "rules/dft.smk"
-include: "rules/makstat.smk"
+include: "rules/pxweb.smk"
 include: "rules/national.smk"
 
 
@@ -44,7 +44,8 @@ workflow.source_path("scripts/_schemas.py")
 workflow.source_path("scripts/_jrc_idees.py")
 workflow.source_path("scripts/_eurostat.py")
 workflow.source_path("scripts/_bfs.py")
-workflow.source_path("scripts/_makstat.py")
+workflow.source_path("scripts/_pxweb.py")
+workflow.source_path("scripts/_national.py")
 
 
 rule all:

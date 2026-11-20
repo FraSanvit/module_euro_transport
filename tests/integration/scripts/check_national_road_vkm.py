@@ -5,8 +5,9 @@ import pandas as pd
 vkm = pd.read_parquet(snakemake.input.vkm)  # noqa: F821
 countries = snakemake.params.countries  # noqa: F821
 EU = {"BEL", "NLD", "LUX"}
+NO_VKM = {"ALB", "BIH", "MNE", "SRB", "XKX", "ISL"}  # no reliable source
 
-assert sorted(vkm["country_id"].unique()) == sorted(countries)
+assert sorted(vkm["country_id"].unique()) == sorted(set(countries) - NO_VKM)
 assert (vkm.groupby("country_id")["vkm"].sum() > 0).all()
 
 jrc = vkm[vkm["country_id"].isin(EU)]
