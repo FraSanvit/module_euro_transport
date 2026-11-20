@@ -8,7 +8,7 @@ import pytest
 
 PIXI_TOML = Path(__file__).parents[2] / "pixi.toml"
 # conda package name -> python import name (only where they differ)
-IMPORT_NAMES = {"curl": None}
+IMPORT_NAMES = {"curl": None, "odfpy": "odf"}
 
 
 def _module_packages() -> list[str]:

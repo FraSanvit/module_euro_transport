@@ -26,6 +26,7 @@ pandera = ">=0.34.1"
 openpyxl = ">=3.1.5"
 pyarrow = ">=26.0.1"
 numpy = ">=2.5.5"
+odfpy = ">=1.4.1"
 
 [feature.module.dependencies]
 curl = ">=8.9.1"
@@ -34,6 +35,7 @@ pyarrow = ">=26.0.1"
 pandera = ">=0.34.1"
 openpyxl = ">=3.1.5"
 numpy = ">=2.5.5"
+odfpy = ">=1.4.1"
 
 [environments]
 module = { features = ["module"], no-default-feature = true }

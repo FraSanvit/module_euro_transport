@@ -88,6 +88,19 @@ resources:
       # Quote "NO": unquoted it is a YAML boolean.
       stock_country_codes:
         NOR: "NO"
+    dft:
+      # Department for Transport (DfT) table VEH0101 "Vehicles at the end of the
+      # quarter by licence status and body type" (OpenDocument spreadsheet), last
+      # updated 23 September 2026 (data to 2026 Q2). Original URL:
+      # https://assets.publishing.service.gov.uk/media/6aad561a2f29b38884818708/veh0101.ods
+      # DfT media URLs redirect to the newest release, so the file is pinned through
+      # a UK Government Web Archive capture (byte-identical to the original).
+      url: "https://webarchive.nationalarchives.gov.uk/ukgwa/20261102165501id_/https://assets.publishing.service.gov.uk/media/6aad561a2f29b38884818708/veh0101.ods"
+      source: "DfT VEH0101"
+      # Countries whose vehicle stock comes from DfT (ISO alpha-3 -> DfT code;
+      # GB = Great Britain, without Northern Ireland).
+      stock_country_codes:
+        GBR: GB
     # One vehicle stock source per country. Each source lists its countries in
     # `stock_country_codes`, or else in `country_codes` (shared with vehicle-km).
-    stock_sources: [jrc_idees, eurostat_stock, bfs]
+    stock_sources: [jrc_idees, eurostat_stock, bfs, dft]

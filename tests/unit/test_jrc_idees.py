@@ -205,7 +205,7 @@ def test_settings_country_codes_match_config_schema():
 
 
 def test_settings_one_stock_source_per_country():
-    """Each country has at most one vehicle stock source."""
+    """Each supported country has exactly one vehicle stock source."""
     settings = yaml.safe_load(
         (MODULE_ROOT / "workflow/internal/settings.yaml").read_text(encoding="utf-8")
     )
@@ -222,7 +222,7 @@ def test_settings_one_stock_source_per_country():
         for country in codes:
             assert country not in routed, f"{country}: {routed.get(country)} and {source}"
             routed[country] = source
-    assert set(routed) <= allowed
+    assert set(routed) == allowed
     assert automatic["eurostat_stock"]["stock_country_codes"]["NOR"] == "NO"
 
 

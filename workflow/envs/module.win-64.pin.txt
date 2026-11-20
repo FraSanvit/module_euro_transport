@@ -106,4 +106,6 @@ https://conda.anaconda.org/conda-forge/win-64/pandas-3.1.1-np2py315h06e9524_0.co
 https://conda.anaconda.org/conda-forge/noarch/pandera-0.34.1-hc91a356_0.conda#12185daba229bf0bfd04fbfb26620a93
 https://conda.anaconda.org/conda-forge/noarch/et_xmlfile-2.0.0-pyhd8ed1ab_1.conda#71bf9646cbfabf3022c8da4b6b4da737
 https://conda.anaconda.org/conda-forge/win-64/openpyxl-3.1.5-py315h3bcbc18_5.conda#c29bea407efc667c114ebb74e38a71e6
+https://conda.anaconda.org/conda-forge/noarch/defusedxml-0.7.1-pyhd8ed1ab_0.tar.bz2#961b3a227b437d82ad7054484cfa71b2
+https://conda.anaconda.org/conda-forge/noarch/odfpy-1.4.1-pyhd8ed1ab_1.conda#0af156e0f72b30a3f5b6d3efd83e28d9
 https://conda.anaconda.org/conda-forge/win-64/curl-8.23.0-hdb0ef4a_0.conda#fb40b7263f3f10089d6b5a85f188aecc

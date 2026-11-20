@@ -32,6 +32,7 @@ def national_stock_tables(wildcards):
         "jrc_idees": rules.combine_jrc_idees_road_stock.output.stock,
         "eurostat_stock": rules.prepare_eurostat_road_stock.output.stock,
         "bfs": rules.prepare_bfs_road_stock.output.stock,
+        "dft": rules.prepare_dft_road_stock.output.stock,
     }
     return [
         outputs[source]
