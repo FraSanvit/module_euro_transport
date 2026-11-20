@@ -14,7 +14,9 @@ IMPORT_NAMES = {"curl": None}
 def _module_packages() -> list[str]:
     with PIXI_TOML.open("rb") as f:
         deps = tomllib.load(f)["feature"]["module"]["dependencies"]
-    return [IMPORT_NAMES.get(name, name) for name in deps if IMPORT_NAMES.get(name, name)]
+    return [
+        IMPORT_NAMES.get(name, name) for name in deps if IMPORT_NAMES.get(name, name)
+    ]
 
 
 @pytest.mark.parametrize("package", _module_packages())

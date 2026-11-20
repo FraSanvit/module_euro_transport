@@ -1,16 +1,22 @@
 """Rules to used to download automatic resource files."""
 
 
-rule dummy_download:
+rule download_jrc_idees:
     message:
-        "Download the Modelblocks README file."
+        "Download the JRC-IDEES 2021 country zip for {wildcards.country}."
     params:
-        url=internal["resources"]["automatic"]["dummy_readme"],
+        url=lambda wc: internal["resources"]["automatic"]["jrc_idees"]["url"].format(
+            jrc_code=internal["resources"]["automatic"]["jrc_idees"]["country_codes"][
+                wc.country
+            ]
+        ),
     output:
-        readme="<resources>/automatic/dummy_readme.md",
+        zip="<resources>/automatic/jrc_idees/raw/{country}.zip",
     log:
-        "<logs>/dummy_download.log",
+        "<logs>/download_jrc_idees/{country}.log",
+    wildcard_constraints:
+        country="[A-Z]{3}",
     conda:
         "../envs/module.yaml"
     shell:
-        'curl -sSLo {output.readme} "{params.url}"'
+        'curl -sSfL --retry 3 -o {output.zip} "{params.url}" 2> {log}'

@@ -1,5 +1,36 @@
 # Module settings that users cannot modify.
 resources:
   automatic:
-    # Links for automatically downloaded files
-    dummy_readme: "https://raw.githubusercontent.com/modelblocks-org/docs/refs/heads/main/README.md"
+    jrc_idees:
+      # JRC-IDEES 2021, version 1 (2024-05-20). One zip per EU27 country.
+      url: "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/JRC-IDEES/JRC-IDEES-2021_v1/JRC-IDEES-2021_{jrc_code}.zip"
+      source: "JRC-IDEES-2021 v1"
+      # ISO 3166-1 alpha-3 -> JRC-IDEES country code (Eurostat style, Greece = EL).
+      country_codes:
+        AUT: AT
+        BEL: BE
+        BGR: BG
+        CYP: CY
+        CZE: CZ
+        DEU: DE
+        DNK: DK
+        EST: EE
+        ESP: ES
+        FIN: FI
+        FRA: FR
+        GRC: EL
+        HRV: HR
+        HUN: HU
+        IRL: IE
+        ITA: IT
+        LTU: LT
+        LUX: LU
+        LVA: LV
+        MLT: MT
+        NLD: NL
+        POL: PL
+        PRT: PT
+        ROU: RO
+        SWE: SE
+        SVN: SI
+        SVK: SK

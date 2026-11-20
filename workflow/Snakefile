@@ -8,11 +8,9 @@ min_version("9.19")
 # !!!!! IMPORTANT !!!!!
 # Define pathvars for all user resource files and result files
 # This allows users to re-wire how the module is used in their workflow with ease.
-pathvars:
-    # User resources
-    user_message="<resources>/user/user_message.md",
-    # Module results
-    combined_text="<results>/combined_text.md"
+# pathvars:
+#     # User resources
+#     # Module results
 
 
 # Load the example configuration. This will be overridden by users.
@@ -29,12 +27,13 @@ with open(workflow.source_path("internal/settings.yaml"), "r") as f:
 
 # Add all your includes here.
 include: "rules/automatic.smk"
-include: "rules/dummy.smk"
+include: "rules/jrc_idees.smk"
 
 # Add additional files to be delivered alongside the workflow here.
 # This is needed e.g. for python code files that are never
 # explicitly used as a script or input in a snakemake rule.
 # e.g.: workflow.source_path("scripts/_utils.py")
+workflow.source_path("scripts/_schemas.py")
 
 rule all:
     message:
