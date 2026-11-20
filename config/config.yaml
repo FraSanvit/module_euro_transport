@@ -1,3 +1,6 @@
-# A minimal example of how to configure this module
+# Example configuration of this module.
 # Countries to process, as ISO 3166-1 alpha-3 codes.
-countries: [BEL, NLD, LUX]
+# EU27 countries use JRC-IDEES 2021; GBR and NOR use Eurostat.
+countries:
+  [AUT, BEL, BGR, CYP, CZE, DEU, DNK, ESP, EST, FIN, FRA, GRC, HRV, HUN, IRL, ITA,
+   LTU, LUX, LVA, MLT, NLD, POL, PRT, ROU, SVK, SVN, SWE, GBR, NOR]
