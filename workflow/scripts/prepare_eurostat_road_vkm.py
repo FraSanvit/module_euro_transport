@@ -14,6 +14,7 @@ import logging
 import sys
 
 import pandas as pd
+from _eurostat import read_sdmx
 from _schemas import VEHICLE_CATEGORIES, NationalVkmSchema
 
 LOGGER = logging.getLogger(__name__)
@@ -31,24 +32,8 @@ def read_sdmx_csv(path, dimension: str, value: str) -> pd.DataFrame:
 
     Returns columns `geo, vehicle, year, mvkm, flag`.
     """
-    raw = pd.read_csv(path, dtype={"OBS_FLAG": str, "geo": str}, keep_default_na=False)
-    required = {dimension, "unit", "vehicle", "geo", "TIME_PERIOD", "OBS_VALUE"}
-    missing = required - set(raw.columns)
-    if missing:
-        raise ValueError(f"{path}: missing columns {sorted(missing)}.")
-    for update in sorted(raw.get("LAST UPDATE", pd.Series(dtype=str)).unique()):
-        LOGGER.info("%s: Eurostat last update %s", path, update)
-    raw = raw[(raw[dimension] == value) & (raw["unit"] == "MIO_VKM")]
-    raw = raw[raw["OBS_VALUE"].astype(str).str.strip() != ""]
-    return pd.DataFrame(
-        {
-            "geo": raw["geo"],
-            "vehicle": raw["vehicle"],
-            "year": raw["TIME_PERIOD"].astype(int),
-            "mvkm": raw["OBS_VALUE"].astype(float),
-            "flag": raw.get("OBS_FLAG", ""),
-        }
-    ).reset_index(drop=True)
+    table = read_sdmx(path, {dimension: value, "unit": "MIO_VKM"}, keep=["vehicle"])
+    return table.rename(columns={"value": "mvkm"})
 
 
 def _wide(table: pd.DataFrame) -> pd.DataFrame:

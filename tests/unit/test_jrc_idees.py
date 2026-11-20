@@ -187,7 +187,7 @@ def test_settings_country_codes_match_config_schema():
     routed = {
         source: set(block["country_codes"])
         for source, block in automatic.items()
-        if "country_codes" in block
+        if isinstance(block, dict) and "country_codes" in block
     }
     allowed = schema["properties"]["countries"]["items"]["enum"]
     sources = sorted(routed)
@@ -196,12 +196,17 @@ def test_settings_country_codes_match_config_schema():
             assert not routed[a] & routed[b], f"{a} and {b} overlap"
     assert sorted(set().union(*routed.values())) == sorted(allowed)
     for source, block in automatic.items():
-        if "principle" in block:
+        if isinstance(block, dict) and "principle" in block:
             assert set(block["principle"]) == routed[source], source
     jrc = automatic["jrc_idees"]["country_codes"]
     assert len(jrc) == 27
     assert jrc["GRC"] == "EL"
     assert automatic["eurostat"]["country_codes"]["NOR"] == "NO"  # not a YAML boolean
+    # Vehicle stock: Eurostat geo codes for every allowed country; priority sources exist.
+    assert set(allowed) <= set(automatic["eurostat_stock"]["geo_codes"])
+    assert automatic["eurostat_stock"]["geo_codes"]["NOR"] == "NO"
+    for source in automatic["stock_priority"]:
+        assert "source" in automatic[source], source
 
 
 def test_extract_stock_selects_categories(activity):

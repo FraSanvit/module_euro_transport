@@ -1,4 +1,4 @@
-"""Rules to import national road vehicle-km from Eurostat (non-EU countries)."""
+"""Rules to import national road vehicle-km (non-EU countries) and vehicle stock from Eurostat."""
 
 
 rule download_eurostat:
@@ -7,7 +7,7 @@ rule download_eurostat:
     log:
         "<logs>/download_eurostat/{dataset}.log",
     wildcard_constraints:
-        dataset="road_tf_vehmov|road_tf_road",
+        dataset="road_tf_vehmov|road_tf_road|road_eqs_lorroa|road_eqs_carmot|road_eqs_busveh|road_eqs_mopeds",
     conda:
         "../envs/module.yaml"
     params:
@@ -43,3 +43,30 @@ rule prepare_eurostat_road_vkm:
         "Derive road vehicle-km per vehicle category from Eurostat for the configured non-EU countries."
     script:
         "../scripts/prepare_eurostat_road_vkm.py"
+
+
+rule prepare_eurostat_road_stock:
+    input:
+        road_eqs_lorroa="<resources>/automatic/eurostat/raw/road_eqs_lorroa.csv",
+        road_eqs_carmot="<resources>/automatic/eurostat/raw/road_eqs_carmot.csv",
+        road_eqs_busveh="<resources>/automatic/eurostat/raw/road_eqs_busveh.csv",
+        road_eqs_mopeds="<resources>/automatic/eurostat/raw/road_eqs_mopeds.csv",
+    output:
+        stock="<resources>/automatic/eurostat/road_stock.parquet",
+    log:
+        "<logs>/prepare_eurostat_road_stock.log",
+    conda:
+        "../envs/module.yaml"
+    params:
+        geo_codes=lambda wc: {
+            country: internal["resources"]["automatic"]["eurostat_stock"]["geo_codes"][
+                country
+            ]
+            for country in config["countries"]
+        },
+        exclude=internal["resources"]["automatic"]["eurostat_stock"]["exclude"],
+        source=internal["resources"]["automatic"]["eurostat_stock"]["source"],
+    message:
+        "Derive the road vehicle stock per vehicle category from Eurostat for the configured countries."
+    script:
+        "../scripts/prepare_eurostat_road_stock.py"

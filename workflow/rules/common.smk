@@ -24,4 +24,5 @@ def national_stock_tables(wildcards):
     tables = []
     if countries_from("jrc_idees"):
         tables.append(rules.combine_jrc_idees_road_stock.output.stock)
+    tables.append(rules.prepare_eurostat_road_stock.output.stock)
     return tables

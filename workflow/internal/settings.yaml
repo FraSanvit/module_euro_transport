@@ -68,3 +68,51 @@ resources:
         CHE: CH
       principle:
         CHE: territorial
+    eurostat_stock:
+      # Eurostat road vehicle stock (number of vehicles), full datasets as SDMX-CSV,
+      # downloaded with the `eurostat` URL. Not versioned: "LAST UPDATE" is logged.
+      # Used after JRC-IDEES in the stock priority (see `stock_priority`).
+      datasets: [road_eqs_lorroa, road_eqs_carmot, road_eqs_busveh, road_eqs_mopeds]
+      source: "Eurostat road_eqs"
+      # ISO 3166-1 alpha-3 -> Eurostat geo code, for every supported country.
+      geo_codes:
+        AUT: AT
+        BEL: BE
+        BGR: BG
+        CYP: CY
+        CZE: CZ
+        DEU: DE
+        DNK: DK
+        EST: EE
+        ESP: ES
+        FIN: FI
+        FRA: FR
+        GRC: EL
+        HRV: HR
+        HUN: HU
+        IRL: IE
+        ITA: IT
+        LTU: LT
+        LUX: LU
+        LVA: LV
+        MLT: MT
+        NLD: NL
+        POL: PL
+        PRT: PT
+        ROU: RO
+        SWE: SE
+        SVN: SI
+        SVK: SK
+        GBR: "UK"  # Eurostat "UK" stock equals Great Britain (DfT), checked 2023.
+        NOR: "NO"
+        CHE: CH
+        MKD: MK
+      # Country-categories not to take from Eurostat, with the reason.
+      exclude:
+        MKD:
+          # road_eqs_lorroa LOR_GT3P5 for MK equals MAKSTAT "goods vehicles" of all
+          # weights (vans included), so it is not a heavy-duty count.
+          - heavy_duty
+    # Order in which sources are used for the national vehicle stock: for each
+    # country, year and vehicle category the first source with a value is kept.
+    stock_priority: [jrc_idees, eurostat_stock]
