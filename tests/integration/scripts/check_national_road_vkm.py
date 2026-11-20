@@ -14,7 +14,7 @@ assert set(jrc["source"]) == {"JRC-IDEES-2021 v1"}
 assert set(jrc["year"]) == set(range(2000, 2022))
 assert len(jrc) == len(EU) * 22 * 5
 
-eurostat = vkm[~vkm["country_id"].isin(EU)]
+eurostat = vkm[vkm["country_id"].isin({"GBR", "NOR"})]
 assert set(eurostat["source"]) == {"Eurostat road_tf_vehmov/road_tf_road"}
 assert set(eurostat["principle"]) == {"territorial"}
 assert eurostat["year"].min() >= 2013
@@ -23,6 +23,21 @@ gbr_hdv = eurostat.query(
     "country_id == 'GBR' and vehicle_category == 'heavy_duty' and year == 2019"
 )["vkm"]
 assert 25e9 < gbr_hdv.item() < 31e9
+
+bfs = vkm[vkm["country_id"] == "CHE"]
+assert set(bfs["source"]) == {"BFS je-d-11.04.01.01/je-d-11.05.01.01"}
+assert set(bfs["principle"]) == {"territorial"}
+assert bfs["year"].min() == 1990
+assert set(bfs["vehicle_category"]) == {
+    "heavy_duty",
+    "light_duty",
+    "passenger_car",
+    "motorcycle",
+    "bus",
+}
+# Swiss heavy goods vehicles 2019: 2,226 Mvkm (BFS je-d-11.05.01.01).
+che_hdv = bfs.query("vehicle_category == 'heavy_duty' and year == 2019")["vkm"]
+assert 2.0e9 < che_hdv.item() < 2.5e9
 
 with open(snakemake.output[0], "w") as f:  # noqa: F821
     f.write("ok\n")

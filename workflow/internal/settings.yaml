@@ -48,3 +48,23 @@ resources:
       principle:
         GBR: territorial
         NOR: territorial
+    bfs:
+      # Swiss Federal Statistical Office (BFS), one Excel table each for freight and
+      # passenger road traffic. Pinned DAM asset IDs: a new BFS release gets a new ID.
+      url: "https://dam-api.bfs.admin.ch/hub/api/dam/assets/{asset_id}/master"
+      tables:
+        freight:
+          # je-d-11.05.01.01 "Fahrleistungen im Gueterverkehr", Stand Juli 2026.
+          bfs_number: je-d-11.05.01.01
+          asset_id: 36662225
+        passenger:
+          # je-d-11.04.01.01 "Fahrleistungen und Fahrzeugbewegungen im
+          # Personenverkehr", Stand Oktober 2026.
+          bfs_number: je-d-11.04.01.01
+          asset_id: 36851390
+      source: "BFS je-d-11.04.01.01/je-d-11.05.01.01"
+      # ISO 3166-1 alpha-3 -> BFS country code (BFS only covers Switzerland).
+      country_codes:
+        CHE: CH
+      principle:
+        CHE: territorial

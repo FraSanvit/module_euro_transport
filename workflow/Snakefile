@@ -30,6 +30,7 @@ include: "rules/common.smk"
 include: "rules/automatic.smk"
 include: "rules/jrc_idees.smk"
 include: "rules/eurostat.smk"
+include: "rules/bfs.smk"
 include: "rules/national.smk"
 
 

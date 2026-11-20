@@ -14,4 +14,6 @@ def national_source_tables(wildcards):
         tables.append(rules.combine_jrc_idees_road_vkm.output.vkm)
     if countries_from("eurostat"):
         tables.append(rules.prepare_eurostat_road_vkm.output.vkm)
+    if countries_from("bfs"):
+        tables.append(rules.prepare_bfs_road_vkm.output.vkm)
     return tables

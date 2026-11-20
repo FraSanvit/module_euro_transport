@@ -157,18 +157,27 @@ def test_combine_sorts_and_rejects_duplicates(activity):
 def test_settings_country_codes_match_config_schema():
     """Each allowed country has exactly one source; JRC-IDEES covers the EU27."""
     settings = yaml.safe_load(
-        (MODULE_ROOT / "workflow/internal/settings.yaml").read_text()
+        (MODULE_ROOT / "workflow/internal/settings.yaml").read_text(encoding="utf-8")
     )
     schema = yaml.safe_load(
         (MODULE_ROOT / "workflow/internal/config.schema.yaml").read_text()
     )
     automatic = settings["resources"]["automatic"]
-    jrc = automatic["jrc_idees"]["country_codes"]
-    eurostat = automatic["eurostat"]["country_codes"]
+    routed = {
+        source: set(block["country_codes"])
+        for source, block in automatic.items()
+        if "country_codes" in block
+    }
     allowed = schema["properties"]["countries"]["items"]["enum"]
-    assert not set(jrc) & set(eurostat), "JRC-IDEES has priority: no overlap"
-    assert sorted({*jrc, *eurostat}) == sorted(allowed)
+    sources = sorted(routed)
+    for i, a in enumerate(sources):
+        for b in sources[i + 1 :]:
+            assert not routed[a] & routed[b], f"{a} and {b} overlap"
+    assert sorted(set().union(*routed.values())) == sorted(allowed)
+    for source, block in automatic.items():
+        if "principle" in block:
+            assert set(block["principle"]) == routed[source], source
+    jrc = automatic["jrc_idees"]["country_codes"]
     assert len(jrc) == 27
     assert jrc["GRC"] == "EL"
-    assert eurostat["NOR"] == "NO"  # not a YAML boolean
-    assert set(automatic["eurostat"]["principle"]) == set(eurostat)
+    assert automatic["eurostat"]["country_codes"]["NOR"] == "NO"  # not a YAML boolean

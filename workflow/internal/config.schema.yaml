@@ -7,7 +7,8 @@ properties:
   countries:
     description: >-
       Countries to process, as ISO 3166-1 alpha-3 codes. EU27 countries use
-      JRC-IDEES 2021; GBR and NOR use Eurostat.
+      JRC-IDEES 2021; GBR and NOR use Eurostat; CHE uses the Swiss Federal
+      Statistical Office (BFS).
     type: array
     minItems: 1
     uniqueItems: true
@@ -15,4 +16,4 @@ properties:
       type: string
       enum: [AUT, BEL, BGR, CYP, CZE, DEU, DNK, EST, ESP, FIN, FRA, GRC, HRV, HUN,
         IRL, ITA, LTU, LUX, LVA, MLT, NLD, POL, PRT, ROU, SWE, SVN, SVK,
-        GBR, NOR]
+        GBR, NOR, CHE]
