@@ -17,3 +17,11 @@ def national_source_tables(wildcards):
     if countries_from("bfs"):
         tables.append(rules.prepare_bfs_road_vkm.output.vkm)
     return tables
+
+
+def national_stock_tables(wildcards):
+    """Per-source national vehicle stock tables needed for the configured countries."""
+    tables = []
+    if countries_from("jrc_idees"):
+        tables.append(rules.combine_jrc_idees_road_stock.output.stock)
+    return tables

@@ -39,10 +39,26 @@ rule check_national_road_vkm:
         "scripts/check_national_road_vkm.py"
 
 
+rule check_national_road_stock:
+    input:
+        stock="resources/module/resources/automatic/national_road_stock.parquet",
+    output:
+        "results/checks/national_road_stock.done",
+    log:
+        "resources/module/logs/check_national_road_stock.log",
+    conda:
+        "../../workflow/envs/module.yaml"
+    message:
+        "Check the combined national road vehicle stock for the test countries."
+    script:
+        "scripts/check_national_road_stock.py"
+
+
 # Request something from the module
 rule all:
     default_target: True
     input:
         "results/checks/national_road_vkm.done",
+        "results/checks/national_road_stock.done",
     message:
         "A generic test case for your module."

@@ -1,4 +1,4 @@
-"""Rules to combine national road vehicle-km from all sources."""
+"""Rules to combine national road vehicle-km and vehicle stock from all sources."""
 
 
 rule combine_national_road_vkm:
@@ -10,7 +10,28 @@ rule combine_national_road_vkm:
         "<logs>/combine_national_road_vkm.log",
     conda:
         "../envs/module.yaml"
+    params:
+        metric="vkm",
+        countries=config["countries"],
     message:
         "Combine national road vehicle-km of all configured countries and sources."
     script:
-        "../scripts/combine_national_vkm.py"
+        "../scripts/combine_national_tables.py"
+
+
+rule combine_national_road_stock:
+    input:
+        stock=national_stock_tables,
+    output:
+        stock="<resources>/automatic/national_road_stock.parquet",
+    log:
+        "<logs>/combine_national_road_stock.log",
+    conda:
+        "../envs/module.yaml"
+    params:
+        metric="stock",
+        countries=config["countries"],
+    message:
+        "Combine the national road vehicle stock of all configured countries and sources."
+    script:
+        "../scripts/combine_national_tables.py"
