@@ -190,3 +190,14 @@ gap_filling:
   # Gaps inside a series of at most this many consecutive years are filled by
   # linear interpolation; longer gaps are left missing.
   interpolation_max_years: 3
+  # Neighbour countries whose average ratios fill missing categories of a country.
+  # Neighbours are processed even when not configured; they must not need
+  # neighbours themselves.
+  neighbours:
+    ALB: &balkans [BGR, GRC, HRV, HUN, ROU, SVN]
+    BIH: *balkans
+    MKD: *balkans
+    MNE: *balkans
+    SRB: *balkans
+    XKX: *balkans
+    ISL: [DNK, NOR, SWE]

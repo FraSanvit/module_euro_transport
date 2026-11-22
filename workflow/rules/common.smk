@@ -1,14 +1,21 @@
 """Helper functions shared by the module rules."""
 
 
+def processed_countries():
+    """Configured countries plus the neighbours needed to fill their gaps."""
+    neighbours = internal["gap_filling"]["neighbours"]
+    extra = [n for country in config["countries"] for n in neighbours.get(country, [])]
+    return list(dict.fromkeys(config["countries"] + extra))
+
+
 def countries_from(source):
-    """Configured countries whose national road vehicle-km come from `source`."""
+    """Processed countries whose national road vehicle-km come from `source`."""
     codes = internal["resources"]["automatic"][source]["country_codes"]
-    return [country for country in config["countries"] if country in codes]
+    return [country for country in processed_countries() if country in codes]
 
 
 def national_source_tables(wildcards):
-    """Per-source national vehicle-km tables needed for the configured countries."""
+    """Per-source national vehicle-km tables needed for the processed countries."""
     tables = []
     if countries_from("jrc_idees"):
         tables.append(rules.combine_jrc_idees_road_vkm.output.vkm)
@@ -28,14 +35,14 @@ def pxweb_url(provider, table):
 
 
 def stock_countries_from(source):
-    """Configured countries whose national vehicle stock comes from `source`."""
+    """Processed countries whose national vehicle stock comes from `source`."""
     block = internal["resources"]["automatic"][source]
     codes = block.get("stock_country_codes", block.get("country_codes"))
-    return [country for country in config["countries"] if country in codes]
+    return [country for country in processed_countries() if country in codes]
 
 
 def national_stock_tables(wildcards):
-    """Per-source national vehicle stock tables needed for the configured countries."""
+    """Per-source national vehicle stock tables needed for the processed countries."""
     outputs = {
         "jrc_idees": rules.combine_jrc_idees_road_stock.output.stock,
         "eurostat_stock": rules.prepare_eurostat_road_stock.output.stock,

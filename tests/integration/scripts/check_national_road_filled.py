@@ -4,9 +4,13 @@ import pandas as pd
 
 KEYS = ["country_id", "year", "vehicle_category"]
 
+countries = snakemake.params.countries  # noqa: F821
+
 for metric in ["vkm", "stock"]:
     observed = pd.read_parquet(snakemake.input[metric])  # noqa: F821
+    observed = observed[observed["country_id"].isin(countries)]
     filled = pd.read_parquet(snakemake.input[f"{metric}_filled"])  # noqa: F821
+    assert set(filled["country_id"]) <= set(countries)  # neighbours are not written
     assert not filled.duplicated(KEYS).any()
     # Observed values are kept unchanged.
     kept = filled[filled["filled"] == "observed"].drop(columns="filled")
@@ -28,6 +32,16 @@ for key in [("NOR", 2002, "passenger_car"), ("XKX", 2018, "heavy_duty"), ("BIH",
 # GBR vehicle-km 2018 is interpolated for all categories.
 gbr = vkm.xs(("GBR", 2018), level=["country_id", "year"])
 assert len(gbr) == 5 and set(gbr["filled"]) == {"interpolated"}
+
+# Categories missing entirely are filled from neighbour ratios to cars, for the
+# years with own car stock: MKD light, heavy, motorcycle; XKX motorcycle.
+ratio = stock[stock["filled"] == "neighbour_ratio"].reset_index()
+assert set(map(tuple, ratio[["country_id", "vehicle_category"]].drop_duplicates().values)) == {
+    ("MKD", "light_duty"), ("MKD", "heavy_duty"), ("MKD", "motorcycle"), ("XKX", "motorcycle"),
+}
+mkd = stock.xs("MKD", level="country_id")["stock"].unstack("vehicle_category")
+assert mkd.notna().all().all() and len(mkd) == 14  # 2012-2025, all five categories
+assert (mkd["heavy_duty"] < mkd["light_duty"]).all() and (mkd["light_duty"] < mkd["passenger_car"]).all()
 
 with open(snakemake.output[0], "w") as f:  # noqa: F821
     f.write("ok\n")

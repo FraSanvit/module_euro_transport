@@ -4,6 +4,10 @@ import pandas as pd
 
 stock = pd.read_parquet(snakemake.input.stock)  # noqa: F821
 countries = snakemake.params.countries  # noqa: F821
+# Neighbours used for gap filling are processed too (JRC-IDEES and Eurostat).
+NEIGHBOURS = {"BGR", "GRC", "HRV", "HUN", "ROU", "SVN", "DNK", "NOR", "SWE"}
+assert set(stock["country_id"]) - set(countries) == NEIGHBOURS - set(countries)
+stock = stock[stock["country_id"].isin(countries)]
 # One stock source per country.
 SOURCES = {
     "BEL": "JRC-IDEES-2021 v1",

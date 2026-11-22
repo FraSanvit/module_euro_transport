@@ -14,7 +14,7 @@ rule combine_national_road_vkm:
         metric="vkm",
         countries=config["countries"],
     message:
-        "Combine national road vehicle-km of all configured countries and sources."
+        "Combine national road vehicle-km of all processed countries (configured countries and their neighbours) and sources."
     script:
         "../scripts/combine_national_tables.py"
 
@@ -32,7 +32,7 @@ rule combine_national_road_stock:
         metric="stock",
         countries=config["countries"],
     message:
-        "Combine the national road vehicle stock of all configured countries and sources."
+        "Combine the national road vehicle stock of all processed countries (configured countries and their neighbours) and sources."
     script:
         "../scripts/combine_national_tables.py"
 
@@ -49,6 +49,8 @@ rule fill_national_road_vkm:
     params:
         metric="vkm",
         max_years=internal["gap_filling"]["interpolation_max_years"],
+        countries=config["countries"],
+        neighbours={},
     message:
         "Fill gaps in the national road vehicle-km (interpolation of inner gaps)."
     script:
@@ -67,7 +69,9 @@ rule fill_national_road_stock:
     params:
         metric="stock",
         max_years=internal["gap_filling"]["interpolation_max_years"],
+        countries=config["countries"],
+        neighbours=internal["gap_filling"]["neighbours"],
     message:
-        "Fill gaps in the national road vehicle stock (interpolation of inner gaps)."
+        "Fill gaps in the national road vehicle stock (interpolation of inner gaps, missing categories from neighbour ratios to cars)."
     script:
         "../scripts/fill_national_tables.py"

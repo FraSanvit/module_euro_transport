@@ -42,7 +42,7 @@ NationalStockSchema = pa.DataFrameSchema(
 """National road vehicle stock (number of vehicles) per vehicle category and source."""
 
 
-FILL_METHODS = ["observed", "interpolated"]
+FILL_METHODS = ["observed", "interpolated", "neighbour_ratio"]
 """How a value in a filled national table was obtained (step 5, gap filling)."""
 
 
