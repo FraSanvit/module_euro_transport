@@ -194,7 +194,7 @@ gap_filling:
   # Neighbours are processed even when not configured; they must not need
   # neighbours themselves.
   neighbours:
-    ALB: &balkans [BGR, GRC, HRV, HUN, ROU, SVN]
+    ALB: &balkans [BGR, HRV, HUN, ROU, SVN]
     BIH: *balkans
     MKD: *balkans
     MNE: *balkans

@@ -5,7 +5,7 @@ import pandas as pd
 vkm = pd.read_parquet(snakemake.input.vkm)  # noqa: F821
 countries = snakemake.params.countries  # noqa: F821
 # Neighbours used for gap filling are processed too (JRC-IDEES and Eurostat).
-NEIGHBOURS = {"BGR", "GRC", "HRV", "HUN", "ROU", "SVN", "DNK", "NOR", "SWE"}
+NEIGHBOURS = {"BGR", "HRV", "HUN", "ROU", "SVN", "DNK", "NOR", "SWE"}
 assert set(vkm["country_id"]) - set(countries) == NEIGHBOURS - set(countries)
 vkm = vkm[vkm["country_id"].isin(countries)]
 EU = {"BEL", "NLD", "LUX"}
