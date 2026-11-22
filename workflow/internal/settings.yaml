@@ -185,3 +185,8 @@ resources:
     # One vehicle stock source per country. Each source lists its countries in
     # `stock_country_codes`, or else in `country_codes` (shared with vehicle-km).
     stock_sources: [jrc_idees, eurostat_stock, bfs, dft, makstat, hagstofa, ask]
+# Gap filling (step 5), applied to the combined national tables.
+gap_filling:
+  # Gaps inside a series of at most this many consecutive years are filled by
+  # linear interpolation; longer gaps are left missing.
+  interpolation_max_years: 3

@@ -56,11 +56,30 @@ rule check_national_road_stock:
         "scripts/check_national_road_stock.py"
 
 
+rule check_national_road_filled:
+    input:
+        vkm="resources/module/resources/automatic/national_road_vkm.parquet",
+        stock="resources/module/resources/automatic/national_road_stock.parquet",
+        vkm_filled="resources/module/resources/automatic/national_road_vkm_filled.parquet",
+        stock_filled="resources/module/resources/automatic/national_road_stock_filled.parquet",
+    output:
+        "results/checks/national_road_filled.done",
+    log:
+        "resources/module/logs/check_national_road_filled.log",
+    conda:
+        "../../workflow/envs/module.yaml"
+    message:
+        "Check the gap-filled national road vehicle-km and stock for the test countries."
+    script:
+        "scripts/check_national_road_filled.py"
+
+
 # Request something from the module
 rule all:
     default_target: True
     input:
         "results/checks/national_road_vkm.done",
         "results/checks/national_road_stock.done",
+        "results/checks/national_road_filled.done",
     message:
         "A generic test case for your module."

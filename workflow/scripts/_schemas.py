@@ -40,3 +40,25 @@ NationalStockSchema = pa.DataFrameSchema(
     coerce=False,
 )
 """National road vehicle stock (number of vehicles) per vehicle category and source."""
+
+
+FILL_METHODS = ["observed", "interpolated"]
+"""How a value in a filled national table was obtained (step 5, gap filling)."""
+
+
+def _filled(schema: pa.DataFrameSchema) -> pa.DataFrameSchema:
+    """A national schema plus a `filled` column, one value per country, year and category."""
+    return pa.DataFrameSchema(
+        {**schema.columns, "filled": pa.Column(str, pa.Check.isin(FILL_METHODS))},
+        unique=["country_id", "year", "vehicle_category"],
+        strict=True,
+        ordered=True,
+        coerce=False,
+    )
+
+
+FilledVkmSchema = _filled(NationalVkmSchema)
+"""National road vehicle-km after gap filling (observed and filled values)."""
+
+FilledStockSchema = _filled(NationalStockSchema)
+"""National road vehicle stock after gap filling (observed and filled values)."""
