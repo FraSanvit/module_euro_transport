@@ -143,6 +143,7 @@ rule prepare_heavy_duty_statistics:
         dc=f"{HD_DIR}/eurostat/road_go_ta_dc.csv",
         hac=f"{HD_DIR}/eurostat/road_go_ca_hac.csv",
         tra=f"{HD_DIR}/eurostat/road_go_ta_tra.csv",
+        vm=f"{HD_DIR}/eurostat/road_go_ta_vm.csv",
         ia=lambda wc: [f"{HD_DIR}/eurostat/road_go_ia_rc_{y}.csv" for y in hd_years()],
     output:
         statistics=f"{HD_DIR}/statistics.parquet",
@@ -159,6 +160,7 @@ rule prepare_heavy_duty_statistics:
         cabotage_zero=HD["cabotage_zero"],
         exclude=HD["exclude"],
         max_coverage_gap=HD["max_coverage_gap"],
+        empty_bandwidth=HD["empty_km_bandwidth"],
         correct_coverage=config["heavy_duty"]["international"][
             "reporter_coverage_correction"
         ],

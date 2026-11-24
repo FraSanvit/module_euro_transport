@@ -86,11 +86,94 @@ def survey_activity(tott: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def zero_missing_empty(survey: pd.DataFrame) -> pd.DataFrame:
-    """Set empty km to 0 where laden km are reported but empty km are not (IT, RO).
+EMPTY_PAIRS = [("LNAT", "ENAT", "NAT"), ("LINTL", "EINTL", "INTL")]
 
-    Gives a lower bound for the domestic level (and for cabotage hosted there, whose
-    empty share is the host's). Columns `empty_zero_nat` (ENAT) and `empty_zero_intl`
+
+def laden_trip_length(vm: pd.DataFrame) -> pd.DataFrame:
+    """Average laden journey length (km) per `geo, year` from road_go_ta_vm.
+
+    `vm` has columns `geo, tra_type, tra_cov, loadstat, unit, year, value` (MIO_VKM and
+    THS_JRNY). Returns columns `trip_NAT`, `trip_INTL` (all trucks, hire + own account).
+    """
+    rows = vm[(vm["tra_type"] == "TOTAL") & (vm["loadstat"] == "LOADED")]
+    table = rows.pivot_table(index=["geo", "year"], columns=["tra_cov", "unit"], values="value")
+    out = pd.DataFrame(index=table.index)
+    for cov in ["NAT", "INTL"]:
+        vkm = table.get((cov, "MIO_VKM"), pd.Series(np.nan, index=table.index))
+        trips = table.get((cov, "THS_JRNY"), pd.Series(np.nan, index=table.index))
+        out[f"trip_{cov}"] = (vkm * MIO / (trips * THS)).where(trips > 0)
+    return out
+
+
+def estimate_missing_empty(survey: pd.DataFrame, trips: pd.DataFrame, bandwidth: float = 0.2) -> pd.DataFrame:
+    """Estimate unreported empty km (laden reported, empty not); national and international separately.
+
+    1. The country reports empty km in other years (BE, LU, LV, NL in early years): its
+       own empty/laden ratio from the nearest reported year (later year on ties).
+    2. It never does (IT, RO): a weighted mean of the ratios of the countries reporting
+       both in the same year, with Gaussian weights on the difference in log average
+       laden journey length (`laden_trip_length`), standard deviation `bandwidth`. Empty
+       running depends on trip length (short distribution trips return empty more
+       often), so trip length is a better guide than geography; smooth weights avoid
+       jumps when the closest countries change between years.
+    Rows without either stay missing (see `zero_missing_empty`). Columns
+    `empty_est_nat`, `empty_est_intl` mark the estimates.
+    """
+    survey = survey.copy()
+    trips = trips.reindex(survey.index)
+    geo = survey.index.get_level_values("geo").to_series(index=survey.index)
+    country = is_country(geo)
+    for laden, empty, cov in EMPTY_PAIRS:
+        flag = f"empty_est_{cov.lower()}"
+        survey[flag] = False
+        trip = trips[f"trip_{cov}"]
+        own = country & survey[empty].notna() & (survey[laden] > 0)
+        reported = own & trip.notna()
+        missing = country & survey[laden].notna() & survey[empty].isna()
+        ratio = survey[empty] / survey[laden]
+        for idx in survey.index[missing]:
+            year = idx[1]
+            own_years = survey.index[own & (geo == idx[0])].get_level_values("year")
+            if len(own_years):
+                nearest = min(own_years, key=lambda y: (abs(y - year), -y))
+                estimate = ratio[(idx[0], nearest)]
+                survey.loc[idx, empty] = survey.loc[idx, laden] * estimate
+                survey.loc[idx, flag] = True
+                LOGGER.info("%s %d %s: own empty/laden %.3f of %d.", idx[0], year, empty, estimate, nearest)
+                continue
+            if np.isnan(trip[idx]):
+                continue
+            ref = reported & (survey.index.get_level_values("year") == year)
+            if not ref.any():
+                continue
+            distance = np.log(trip[ref]) - np.log(trip[idx])
+            weight = np.exp(-0.5 * (distance / bandwidth) ** 2)
+            estimate = (weight * ratio[ref]).sum() / weight.sum()
+            survey.loc[idx, empty] = survey.loc[idx, laden] * estimate
+            survey.loc[idx, flag] = True
+            top = (weight / weight.sum()).sort_values(ascending=False).index[:5]
+            LOGGER.info(
+                "%s %d %s: laden trip %.0f km; empty/laden %.3f; largest weights %s.",
+                idx[0], year, empty, trip[idx], estimate,
+                ", ".join(
+                    f"{g} ({trip[(g, y)]:.0f} km, ratio {ratio[(g, y)]:.2f}, w {weight[(g, y)] / weight.sum():.2f})"
+                    for g, y in top
+                ),
+            )  # fmt: skip
+        hit = survey.index[survey[flag]].to_frame(index=False)
+        for g, years in hit.groupby("geo")["year"]:
+            LOGGER.warning(
+                "%s: %s not reported in %d-%d; estimated (own ratio of the nearest year, else countries with a similar laden trip length).",
+                g, empty, years.min(), years.max(),
+            )  # fmt: skip
+    return survey
+
+
+def zero_missing_empty(survey: pd.DataFrame) -> pd.DataFrame:
+    """Set empty km to 0 where laden km are reported but empty km are not.
+
+    Fallback after `estimate_missing_empty`. Gives a lower bound for the domestic
+    level (and for cabotage hosted there, whose empty share is the host's). Columns `empty_zero_nat` (ENAT) and `empty_zero_intl`
     (EINTL) mark the rows; logged per country.
     """
     survey = survey.copy()
@@ -255,10 +338,17 @@ def international_index(
 
 def statistics(
     tott, dc, hac, ia, tra, reference_year, empty_share="host_national", hosts_zero=(),
-    correct_coverage=True, max_coverage_gap=0.5,
+    correct_coverage=True, max_coverage_gap=0.5, vm=None, empty_bandwidth=0.2,
 ) -> pd.DataFrame:
-    """All annual statistics per Eurostat country and year (§6.4-§6.7 inputs)."""
-    survey = zero_missing_empty(survey_activity(tott))
+    """All annual statistics per Eurostat country and year (§6.4-§6.7 inputs).
+
+    `vm` (road_go_ta_vm) gives laden trip lengths for estimating unreported empty km;
+    without it, unreported empty km are 0 (lower bound).
+    """
+    survey = survey_activity(tott)
+    if vm is not None:
+        survey = estimate_missing_empty(survey, laden_trip_length(vm), empty_bandwidth)
+    survey = zero_missing_empty(survey)
     cab = cabotage_vkm(hac, survey, empty_share, hosts_zero).set_index(["geo", "year"])
     alpha = short_trip_share(dc, survey)
     index = international_index(
@@ -448,8 +538,11 @@ def annual_levels(
         return out[column].fillna(False).astype(bool).to_numpy()
 
     zero_nat, zero_intl = marker("empty_zero_nat"), marker("empty_zero_intl")
+    est_nat, est_intl = marker("empty_est_nat"), marker("empty_est_intl")
     cal_flags = c["calibration_flags"].astype(str).to_numpy()
     for i in range(len(out)):
+        if est_nat[i] or (est_intl[i] and geo[i] not in islands):
+            flags[i].append("empty_km_estimated")
         if np.isnan(lnat[i]):
             flags[i].append("no_domestic_statistic")
         elif np.isnan(enat[i]):

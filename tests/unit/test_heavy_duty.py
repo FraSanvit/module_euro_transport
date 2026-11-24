@@ -13,7 +13,9 @@ from _heavy_duty import (
     cabotage_vkm,
     calibrate,
     domestic_level,
+    estimate_missing_empty,
     international_index,
+    laden_trip_length,
     override_split,
     short_trip_share,
     survey_activity,
@@ -70,6 +72,58 @@ def test_zero_missing_empty_lower_bound(caplog):
     assert "own_int_empty_km_zero_lower_bound" in lv.loc[("AA", 2020), "flags"]
     assert "own_int_empty_km_zero_lower_bound" not in lv.loc[("AA", T0), "flags"]
     assert "own_int_empty_km_zero_lower_bound" not in lv.loc[("TT", 2020), "flags"]
+
+
+def vm_rows(geo, year, cov, vkm, journeys):
+    """road_go_ta_vm laden rows: million vkm and thousand journeys."""
+    base = {"geo": geo, "tra_type": "TOTAL", "tra_cov": cov, "loadstat": "LOADED", "year": year}
+    return [{**base, "unit": "MIO_VKM", "value": vkm}, {**base, "unit": "THS_JRNY", "value": journeys}]
+
+
+def test_laden_trip_length():
+    vm = pd.DataFrame(vm_rows("AA", T0, "NAT", 100, 1000) + vm_rows("AA", T0, "INTL", 30, 50))
+    trips = laden_trip_length(vm)
+    assert trips.loc[("AA", T0), "trip_NAT"] == pytest.approx(100)  # 100e6 / 1e6
+    assert trips.loc[("AA", T0), "trip_INTL"] == pytest.approx(600)
+
+
+def test_estimate_missing_empty_by_trip_length(caplog):
+    # IT: 120 km trips, no empty km. Close by trip length: FR (130 km, 0.2), UK (110 km, 0.3);
+    # AT (40 km, 0.6) is far and gets almost no weight.
+    rows = (
+        tott_rows("IT", T0, LNAT_vkm=100, LINTL_vkm=10)
+        + tott_rows("FR", T0, LNAT_vkm=50, ENAT_vkm=10, LINTL_vkm=10, EINTL_vkm=1)
+        + tott_rows("UK", T0, LNAT_vkm=50, ENAT_vkm=15, LINTL_vkm=10, EINTL_vkm=3)
+        + tott_rows("AT", T0, LNAT_vkm=50, ENAT_vkm=30, LINTL_vkm=10, EINTL_vkm=5)
+    )
+    vm = pd.DataFrame(
+        vm_rows("IT", T0, "NAT", 100, 833.3) + vm_rows("FR", T0, "NAT", 50, 384.6)
+        + vm_rows("UK", T0, "NAT", 50, 454.5) + vm_rows("AT", T0, "NAT", 50, 1250)
+        + vm_rows("IT", T0, "INTL", 10, 10) + vm_rows("FR", T0, "INTL", 10, 10)
+        + vm_rows("UK", T0, "INTL", 10, 10) + vm_rows("AT", T0, "INTL", 10, 40)
+    )  # fmt: skip
+    with caplog.at_level(logging.INFO):
+        s = estimate_missing_empty(survey_activity(pd.DataFrame(rows)), laden_trip_length(vm), bandwidth=0.2)
+    trip = {"IT": 120.0, "FR": 130.0, "UK": 110.0, "AT": 40.0}
+    w = {g: np.exp(-0.5 * (np.log(trip[g] / trip["IT"]) / 0.2) ** 2) for g in ["FR", "UK", "AT"]}
+    expected = (0.2 * w["FR"] + 0.3 * w["UK"] + 0.6 * w["AT"]) / sum(w.values())
+    assert s.loc[("IT", T0), "ENAT"] == pytest.approx(100e6 * expected, rel=1e-3)
+    assert 0.24 < expected < 0.26  # AT has almost no weight
+    assert s.loc[("IT", T0), "empty_est_nat"]
+    assert not s.loc[("FR", T0), "empty_est_nat"]
+    # International: IT 1000 km trips; FR and UK also 1000 km (0.1, 0.3), AT 250 km.
+    assert s.loc[("IT", T0), "EINTL"] == pytest.approx(10e6 * (0.1 + 0.3) / 2, rel=1e-3)
+    assert "IT: ENAT not reported" in caplog.text
+    # A country with empty km in other years uses its own ratio of the nearest year.
+    own = tott_rows("BE", 2014, LNAT_vkm=100, LINTL_vkm=10) + tott_rows("BE", 2016, LNAT_vkm=50, ENAT_vkm=2, LINTL_vkm=10, EINTL_vkm=1)
+    s_own = estimate_missing_empty(survey_activity(pd.DataFrame(own)), laden_trip_length(vm.iloc[:0]))
+    assert s_own.loc[("BE", 2014), "ENAT"] == pytest.approx(100e6 * 0.04)
+    assert s_own.loc[("BE", 2014), "EINTL"] == pytest.approx(10e6 * 0.1)
+    assert s_own.loc[("BE", 2014), "empty_est_nat"]
+    # Without either, the zero fallback applies.
+    s2 = zero_missing_empty(estimate_missing_empty(survey_activity(pd.DataFrame(rows)), laden_trip_length(vm.iloc[:0])))
+    assert s2.loc[("IT", T0), "ENAT"] == 0
+    assert s2.loc[("IT", T0), "empty_zero_nat"]
 
 
 def test_short_trip_share():

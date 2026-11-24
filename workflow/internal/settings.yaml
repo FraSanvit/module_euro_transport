@@ -256,6 +256,8 @@ heavy_duty:
       road_go_ta_dc: "road_go_ta_dc/?"
       road_go_ca_hac: "road_go_ca_hac/?"
       road_go_ta_tra: "road_go_ta_tra/?"
+      # Laden journeys (trip length) for estimating unreported empty km.
+      road_go_ta_vm: "road_go_ta_vm/?"
       demo_r_pjanaggr3_uk: "demo_r_pjanaggr3/A.NR.T.TOTAL.UK+UKN/?"
     # International tonnes by reporting haulier x loading x unloading country, one file per year.
     road_go_ia_rc: "road_go_ia_rc/?startPeriod={year}&endPeriod={year}&"
@@ -327,5 +329,10 @@ heavy_duty:
   # than this share of the reference-year index comes from hauliers that no longer
   # report (IRL from 2020: 99% UK hauliers), the index is left missing.
   max_coverage_gap: 0.5
+  # Unreported empty km (IT, RO; BE, LU in early years): empty/laden ratio = weighted mean
+  # over the countries reporting both in that year, Gaussian weights on the difference in
+  # log average laden trip length (road_go_ta_vm) with this standard deviation (0.2 ~ +-20%
+  # trip length); separately for national and international transport (§6.4).
+  empty_km_bandwidth: 0.2
   # Year-on-year change above which a level is flagged.
   jump_flag: 0.25
