@@ -86,6 +86,28 @@ def survey_activity(tott: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def zero_missing_empty(survey: pd.DataFrame) -> pd.DataFrame:
+    """Set empty km to 0 where laden km are reported but empty km are not (IT, RO).
+
+    Gives a lower bound for the domestic level (and for cabotage hosted there, whose
+    empty share is the host's). Columns `empty_zero_nat` (ENAT) and `empty_zero_intl`
+    (EINTL) mark the rows; logged per country.
+    """
+    survey = survey.copy()
+    for laden, empty, column in [("LNAT", "ENAT", "empty_zero_nat"), ("LINTL", "EINTL", "empty_zero_intl")]:
+        missing = survey[laden].notna() & survey[empty].isna()
+        survey.loc[missing, empty] = 0.0
+        survey[column] = missing
+        hit = survey.index[missing].to_frame(index=False)
+        hit = hit[is_country(hit["geo"])]
+        for geo, years in hit.groupby("geo")["year"]:
+            LOGGER.warning(
+                "%s: no %s reported in %d-%d; set to 0 (lower bound).",
+                geo, empty, years.min(), years.max(),
+            )  # fmt: skip
+    return survey
+
+
 def short_trip_share(dc: pd.DataFrame, survey: pd.DataFrame) -> pd.Series:
     """alpha_E = 1 - laden vkm of journeys < 50 km / LNAT (§6.7), per `geo, year`.
 
@@ -236,7 +258,7 @@ def statistics(
     correct_coverage=True, max_coverage_gap=0.5,
 ) -> pd.DataFrame:
     """All annual statistics per Eurostat country and year (§6.4-§6.7 inputs)."""
-    survey = survey_activity(tott)
+    survey = zero_missing_empty(survey_activity(tott))
     cab = cabotage_vkm(hac, survey, empty_share, hosts_zero).set_index(["geo", "year"])
     alpha = short_trip_share(dc, survey)
     index = international_index(
@@ -251,7 +273,8 @@ def statistics(
 def domestic_level(stats: pd.DataFrame, include_cabotage=True, hosts_zero=()) -> pd.DataFrame:
     """D = LNAT + ENAT + CAB (§6.4); CAB is 0 for hosts without cabotage data or in `hosts_zero`.
 
-    D stays missing where LNAT or ENAT is missing (e.g. IT, RO report no empty km).
+    D stays missing where LNAT or ENAT is missing. Unreported empty km (IT, RO) are
+    already 0 here (`zero_missing_empty`), so D is a lower bound there.
     """
     stats = stats.copy()
     cab = stats["CAB"].fillna(0.0) if include_cabotage else 0.0
@@ -343,6 +366,8 @@ def calibrate(
         flags = []
         if geo not in net.index and geo not in islands:
             flags.append("no_network")
+        if bool(st.get("empty_zero_intl", False)) and geo not in islands:
+            flags.append("own_int_empty_zero_t0")  # r_o then scales a laden-only index
         cap0 = alpha_cap(pd.Series([st.get("alpha_E", np.nan)]), f_net, alpha_max).iloc[0]
         etis_int = net["etis_int"].get(geo, np.nan)
         etis_dom = net["etis_dom"].get(geo, np.nan)
@@ -417,11 +442,24 @@ def annual_levels(
     c = cal.reindex(geo)
     flags = [[] for _ in range(len(out))]
     lnat, enat = out["LNAT"].to_numpy(), out["ENAT"].to_numpy()
+    def marker(column):
+        if column not in out:
+            return np.zeros(len(out), dtype=bool)
+        return out[column].fillna(False).astype(bool).to_numpy()
+
+    zero_nat, zero_intl = marker("empty_zero_nat"), marker("empty_zero_intl")
+    cal_flags = c["calibration_flags"].astype(str).to_numpy()
     for i in range(len(out)):
         if np.isnan(lnat[i]):
             flags[i].append("no_domestic_statistic")
         elif np.isnan(enat[i]):
             flags[i].append("empty_km_missing")
+        if zero_nat[i] and not np.isnan(lnat[i]):
+            flags[i].append("empty_km_zero_lower_bound")
+        # Own international: a lower bound only where the reference year had empty km
+        # (otherwise r_o was calibrated on the same laden-only index).
+        if zero_intl[i] and "own_int_empty_zero_t0" not in cal_flags[i] and geo[i] not in islands:
+            flags[i].append("own_int_empty_km_zero_lower_bound")
         if "no_network" in str(c["calibration_flags"].iloc[i]):
             flags[i].append("no_network")
         if not np.isnan(out["I_f"].iloc[i]) and np.isnan(out["I_f_corrected"].iloc[i]):

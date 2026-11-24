@@ -17,6 +17,7 @@ from _heavy_duty import (
     override_split,
     short_trip_share,
     survey_activity,
+    zero_missing_empty,
 )
 
 T0 = 2019
@@ -44,6 +45,31 @@ def test_survey_activity_units():
     s = survey_table()
     assert s.loc[("AA", T0), "LNAT"] == 100e6
     assert s.loc[("AA", T0), "CAB_OUT_TKM"] == 30e6
+
+
+def test_zero_missing_empty_lower_bound(caplog):
+    rows = tott_rows("IT", T0, LNAT_vkm=100, LINTL_vkm=10) + tott_rows("AA", T0, LNAT_vkm=50, ENAT_vkm=5)
+    with caplog.at_level(logging.WARNING):
+        s = zero_missing_empty(survey_activity(pd.DataFrame(rows)))
+    assert s.loc[("IT", T0), "ENAT"] == 0
+    assert s.loc[("IT", T0), "EINTL"] == 0
+    assert s.loc[("IT", T0), "empty_zero_nat"]
+    assert s.loc[("IT", T0), "empty_zero_intl"]
+    assert not s.loc[("AA", T0), "empty_zero_nat"]
+    assert s.loc[("AA", T0), "ENAT"] == 5e6
+    assert "IT: no ENAT reported" in caplog.text
+    # Domestic: flagged as a lower bound. Own international: only where the reference
+    # year had empty km (AA in 2020), not where r_o was calibrated laden-only (TT).
+    stats, network, totals, toll = chain_inputs()
+    stats["empty_zero_nat"] = stats["geo"] == "AA"
+    stats["empty_zero_intl"] = ((stats["geo"] == "AA") & (stats["year"] == 2020)) | (stats["geo"] == "TT")
+    cal = calibrate(stats, network, totals, toll, T0, 1.0, 0.8, 0.9, ["BB"], ["DE"])
+    lv = annual_levels(stats, cal, totals, toll, [T0, 2020], 0.8, 0.9, ["BB"], ["DE"]).set_index(["geo", "year"])
+    assert "empty_km_zero_lower_bound" in lv.loc[("AA", T0), "flags"]
+    assert "empty_km_zero_lower_bound" not in lv.loc[("BB", T0), "flags"]
+    assert "own_int_empty_km_zero_lower_bound" in lv.loc[("AA", 2020), "flags"]
+    assert "own_int_empty_km_zero_lower_bound" not in lv.loc[("AA", T0), "flags"]
+    assert "own_int_empty_km_zero_lower_bound" not in lv.loc[("TT", 2020), "flags"]
 
 
 def test_short_trip_share():
