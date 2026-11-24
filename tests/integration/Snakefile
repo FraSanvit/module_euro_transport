@@ -103,5 +103,6 @@ rule all:
         "results/checks/national_road_stock.done",
         "results/checks/national_road_filled.done",
         "results/checks/heavy_duty_levels.done",
+        "resources/module/resources/automatic/diagnostics/heavy_duty_split.png",
     message:
         "A generic test case for your module."

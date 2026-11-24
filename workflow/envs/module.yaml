@@ -14,3 +14,4 @@ dependencies:
 - geopandas >=1.2.0
 - shapely >=2.2.0
 - pyproj >=3.8.0
+- matplotlib-base >=3.11.2

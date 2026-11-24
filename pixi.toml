@@ -30,6 +30,7 @@ odfpy = ">=1.4.1"
 geopandas = ">=1.2.0"
 shapely = ">=2.2.0"
 pyproj = ">=3.8.0"
+matplotlib-base = ">=3.11.2"
 
 [feature.module.dependencies]
 curl = ">=8.9.1"
@@ -42,6 +43,7 @@ odfpy = ">=1.4.1"
 geopandas = ">=1.2.0"
 shapely = ">=2.2.0"
 pyproj = ">=3.8.0"
+matplotlib-base = ">=3.11.2"
 
 [environments]
 module = { features = ["module"], no-default-feature = true }
