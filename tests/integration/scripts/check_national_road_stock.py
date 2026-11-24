@@ -13,6 +13,7 @@ SOURCES = {
     "BEL": "JRC-IDEES-2021 v1",
     "NLD": "JRC-IDEES-2021 v1",
     "LUX": "JRC-IDEES-2021 v1",
+    "DEU": "JRC-IDEES-2021 v1",
     "NOR": "Eurostat road_eqs",
     "CHE": "BFS cc-d-11.03.02.01.03/je-d-11.03.02.01.04",
     "GBR": "DfT VEH0101",

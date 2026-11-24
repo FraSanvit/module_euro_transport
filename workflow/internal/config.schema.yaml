@@ -2,7 +2,7 @@ $schema: "https://json-schema.org/draft/2020-12/schema"
 description: "Schema for user-provided configuration files."
 type: object
 additionalProperties: false
-required: [countries]
+required: [countries, heavy_duty]
 properties:
   countries:
     description: >-
@@ -22,3 +22,74 @@ properties:
       enum: [AUT, BEL, BGR, CYP, CZE, DEU, DNK, EST, ESP, FIN, FRA, GRC, HRV, HUN,
         IRL, ITA, LTU, LUX, LVA, MLT, NLD, POL, PRT, ROU, SWE, SVN, SVK,
         GBR, NOR, CHE, MKD, ALB, BIH, MNE, SRB, XKX, ISL]
+  heavy_duty:
+    description: >-
+      Heavy-duty (HGV > 3.5 t) vehicle-km, territorial principle: national levels per
+      component (international, domestic long-haul, domestic short-haul) from Eurostat
+      road freight statistics, territorial national totals (GBR, SWE, CHE) and the
+      ETISplus truck network calibrated in the reference year.
+    type: object
+    additionalProperties: false
+    required: [years, reference_year]
+    properties:
+      years:
+        description: Years to compute (each needs Eurostat road freight statistics).
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {type: integer, minimum: 2008, maximum: 2100}
+      reference_year:
+        description: >-
+          Calibration year t0 of the ETISplus-based ratios. Must be one of `years`.
+        type: integer
+        default: 2019
+      parameters:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          k:
+            description: Calibration of ETISplus network vkm to traffic counts.
+            type: number
+            exclusiveMinimum: 0
+            default: 1.0
+          alpha_max:
+            description: Upper bound of the long-haul share of domestic vkm.
+            type: number
+            exclusiveMinimum: 0
+            maximum: 1
+            default: 0.8
+          f_net:
+            description: Share of an ETISplus trip's length on the network.
+            type: number
+            exclusiveMinimum: 0
+            maximum: 1
+            default: 0.9
+      cabotage:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          include:
+            description: Add foreign trucks' cabotage to the domestic level.
+            type: boolean
+            default: true
+          empty_share:
+            description: >-
+              Empty running of cabotage: "host_national" (empty / laden vkm of the
+              host country's national transport) or a fixed share.
+            oneOf:
+              - {type: string, enum: [host_national]}
+              - {type: number, minimum: 0, maximum: 1}
+            default: host_national
+      international:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          reporter_coverage_correction:
+            description: >-
+              Correct the foreign-hauliers index for reporting countries that stop
+              reporting after the reference year (e.g. UK hauliers from 2020).
+            type: boolean
+            default: true

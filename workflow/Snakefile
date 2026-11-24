@@ -34,6 +34,7 @@ include: "rules/bfs.smk"
 include: "rules/dft.smk"
 include: "rules/pxweb.smk"
 include: "rules/national.smk"
+include: "rules/heavy_duty.smk"
 
 
 # Add additional files to be delivered alongside the workflow here.
@@ -46,6 +47,8 @@ workflow.source_path("scripts/_eurostat.py")
 workflow.source_path("scripts/_bfs.py")
 workflow.source_path("scripts/_pxweb.py")
 workflow.source_path("scripts/_national.py")
+workflow.source_path("scripts/_heavy_duty.py")
+workflow.source_path("scripts/_etisplus.py")
 
 
 rule all:

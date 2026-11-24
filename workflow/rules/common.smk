@@ -57,3 +57,60 @@ def national_stock_tables(wildcards):
         for source in internal["resources"]["automatic"]["stock_sources"]
         if stock_countries_from(source)
     ]
+
+
+# Heavy-duty vehicle-km (MULTIYEAR_PLAN.md).
+HD = internal["heavy_duty"]
+HD_DIR = "<resources>/automatic/heavy_duty"
+
+
+def hd_countries():
+    """Processed countries (configured + gap-filling neighbours) with a heavy-duty code."""
+    return [c for c in processed_countries() if c in HD["country_codes"]]
+
+
+def hd_years():
+    return config["heavy_duty"]["years"]
+
+
+def trafa_url():
+    years = range(HD["territorial_totals"]["trafa"]["first_year"], max(hd_years()) + 1)
+    return HD["territorial_totals"]["trafa"]["url"].format(
+        years=",".join(str(y) for y in years)
+    )
+
+
+def hd_totals_inputs(wildcards):
+    """Territorial-total sources of the processed override countries."""
+    countries = hd_countries()
+    inputs = {
+        "dft": f"{HD_DIR}/dft_region_traffic.csv",
+        "uk_population": f"{HD_DIR}/eurostat/demo_r_pjanaggr3_uk.csv",
+        "trafa": f"{HD_DIR}/trafa_t04010.json",
+    }
+    if "CHE" in countries:
+        inputs["bfs"] = rules.prepare_bfs_road_vkm.output.vkm
+    return inputs
+
+
+def hd_downloads():
+    """Downloaded file -> URL, for the manifest."""
+    files = {
+        f"{HD_DIR}/eurostat/{name}.csv": HD["eurostat"]["url"].format(query=query)
+        for name, query in HD["eurostat"]["queries"].items()
+    }
+    for year in hd_years():
+        query = HD["eurostat"]["road_go_ia_rc"].format(year=year)
+        files[f"{HD_DIR}/eurostat/road_go_ia_rc_{year}.csv"] = HD["eurostat"][
+            "url"
+        ].format(query=query)
+    for key, file in HD["etisplus"]["files"].items():
+        files[f"{HD_DIR}/etisplus/{key}.csv"] = HD["etisplus"]["url"].format(
+            file_id=file["file_id"]
+        )
+    files[f"{HD_DIR}/gisco/countries.geojson"] = HD["gisco"]["countries"]
+    files[f"{HD_DIR}/dft_region_traffic.csv"] = HD["territorial_totals"]["dft"]["url"]
+    files[f"{HD_DIR}/trafa_t04010.json"] = trafa_url()
+    if "DEU" in hd_countries():
+        files[f"{HD_DIR}/zenodo/national_data.zip"] = HD["zenodo"]["url"]
+    return files

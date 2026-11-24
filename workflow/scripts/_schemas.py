@@ -62,3 +62,51 @@ FilledVkmSchema = _filled(NationalVkmSchema)
 
 FilledStockSchema = _filled(NationalStockSchema)
 """National road vehicle stock after gap filling (observed and filled values)."""
+
+_NULLABLE_VKM = {"nullable": True, "checks": pa.Check.ge(0)}
+
+HeavyDutyLevelsSchema = pa.DataFrameSchema(
+    {
+        "country_id": pa.Column(str, pa.Check.str_matches(r"^[A-Z]{3}$")),
+        "year": pa.Column(int, pa.Check.in_range(1990, 2100)),
+        **{
+            name: pa.Column(float, **_NULLABLE_VKM)
+            for name in ["LNAT", "ENAT", "CAB", "D", "I_f", "coverage_m", "I_f_corrected",
+                         "J_o", "I_o", "alpha_E", "alpha_cap", "L_int_foreign", "L_int_own",
+                         "L_int", "L_dom", "L_long", "L_short", "total", "T"]
+        },
+        "unit": pa.Column(str, pa.Check.eq("vkm")),
+        "source": pa.Column(str),
+        "flags": pa.Column(str),
+    },
+    unique=["country_id", "year"],
+    strict=True,
+    ordered=True,
+    coerce=False,
+)
+"""Heavy-duty national levels per country and year before gap filling (MULTIYEAR_PLAN.md §6.3-§6.8).
+
+vkm columns (territorial): L_int (international, incl. transit), L_dom = L_long + L_short
+(domestic), total = L_int + L_dom. Statistics: LNAT/ENAT (own hauliers' national laden/
+empty vkm), CAB (foreign cabotage vkm), D (domestic statistic), I_f / I_f_corrected (foreign
+hauliers' international tonnes), J_o (own hauliers' international tonnes), I_o (own
+hauliers' international vkm), alpha_E / alpha_cap (shares), T (territorial total).
+"""
+
+HeavyDutyCalibrationSchema = pa.DataFrameSchema(
+    {
+        "country_id": pa.Column(str, pa.Check.str_matches(r"^[A-Z]{3}$")),
+        "reference_year": pa.Column(int),
+        **{
+            name: pa.Column(float, **_NULLABLE_VKM)
+            for name in ["etis_int", "etis_dom", "L_int0", "L_dom0", "w0", "r_f", "r_o",
+                         "s", "gamma", "alpha_cap0"]
+        },
+        "calibration_flags": pa.Column(str),
+    },
+    unique=["country_id"],
+    strict=True,
+    ordered=True,
+    coerce=False,
+)
+"""Heavy-duty reference-year calibration per country (MULTIYEAR_PLAN.md §6.3)."""

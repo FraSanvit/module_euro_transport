@@ -76,6 +76,25 @@ rule check_national_road_filled:
         "scripts/check_national_road_filled.py"
 
 
+rule check_heavy_duty_levels:
+    input:
+        levels="resources/module/resources/automatic/heavy_duty/national_levels.parquet",
+        calibration="resources/module/resources/automatic/heavy_duty/calibration.parquet",
+        manifest="resources/module/resources/automatic/heavy_duty/manifest.csv",
+    output:
+        "results/checks/heavy_duty_levels.done",
+    log:
+        "resources/module/logs/check_heavy_duty_levels.log",
+    conda:
+        "../../workflow/envs/module.yaml"
+    params:
+        countries=config["module_euro_transport"]["countries"],
+    message:
+        "Check the heavy-duty national levels (before gap filling) for the test countries."
+    script:
+        "scripts/check_heavy_duty_levels.py"
+
+
 # Request something from the module
 rule all:
     default_target: True
@@ -83,5 +102,6 @@ rule all:
         "results/checks/national_road_vkm.done",
         "results/checks/national_road_stock.done",
         "results/checks/national_road_filled.done",
+        "results/checks/heavy_duty_levels.done",
     message:
         "A generic test case for your module."

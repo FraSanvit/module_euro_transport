@@ -203,3 +203,129 @@ gap_filling:
     SRB: [BGR, HRV, HUN, ROU]
     XKX: [BGR, HRV, HUN, ROU]
     ISL: [DNK, FIN, NOR, SWE]
+# Heavy-duty vehicle-km: multi-year territorial level chain (MULTIYEAR_PLAN.md §6.3-§6.8).
+# Levels only; gap filling of countries and of intensive parameters from neighbours is
+# done later in the common gap-filling step.
+heavy_duty:
+  # ISO 3166-1 alpha-3 -> Eurostat / GISCO 2-letter code (Greece EL, United Kingdom UK).
+  # Quote "NO": unquoted it is a YAML boolean.
+  country_codes:
+    ALB: AL
+    AUT: AT
+    BEL: BE
+    BGR: BG
+    BIH: BA
+    CHE: CH
+    CYP: CY
+    CZE: CZ
+    DEU: DE
+    DNK: DK
+    ESP: ES
+    EST: EE
+    FIN: FI
+    FRA: FR
+    GBR: UK
+    GRC: EL
+    HRV: HR
+    HUN: HU
+    IRL: IE
+    ISL: IS
+    ITA: IT
+    LTU: LT
+    LUX: LU
+    LVA: LV
+    MKD: MK
+    MLT: MT
+    MNE: ME
+    NLD: NL
+    "NOR": "NO"
+    POL: PL
+    PRT: PT
+    ROU: RO
+    SRB: RS
+    SVK: SK
+    SVN: SI
+    SWE: SE
+    XKX: XK
+  eurostat:
+    # Live downloads (SDMX-CSV, not versioned: "LAST UPDATE" is logged).
+    url: "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{query}format=SDMX-CSV&compressed=false"
+    # File name -> dataflow and key/time query (ends with "?" or "&").
+    queries:
+      road_go_ta_tott: "road_go_ta_tott/?"
+      road_go_ta_dc: "road_go_ta_dc/?"
+      road_go_ca_hac: "road_go_ca_hac/?"
+      road_go_ta_tra: "road_go_ta_tra/?"
+      demo_r_pjanaggr3_uk: "demo_r_pjanaggr3/A.NR.T.TOTAL.UK+UKN/?"
+    # International tonnes by reporting haulier x loading x unloading country, one file per year.
+    road_go_ia_rc: "road_go_ia_rc/?startPeriod={year}&endPeriod={year}&"
+  etisplus:
+    # Speth et al. (2022), Mendeley Data v1, DOI 10.17632/py2zkrb65h.1 (CC BY 4.0). SHA-256 as
+    # published by Mendeley; checked after download.
+    url: "https://data.mendeley.com/public-files/datasets/py2zkrb65h/files/{file_id}/file_downloaded"
+    files:
+      od_flows: {file_id: de94fffc-c08c-4c46-b839-c8011fbd09cb, name: 01_Trucktrafficflow.csv, sha256: 36eb62916764024c21b2626720d0b6610d4d44e570c2f6b6a7b19f8c910ea71a}
+      regions: {file_id: 7bcf65b6-6323-43b1-bf5f-e9bd8d052117, name: 02_NUTS-3-Regions.csv, sha256: 448e765c98af789436ad9fc6c9e88f2b7a493d485a07e9832b13b777f770e69a}
+      nodes: {file_id: 9e636841-e3f6-4fa3-8d18-68c2c8c12891, name: 03_network-nodes.csv, sha256: bce7afde112d9855b54dc22b66ccdefcea076b50c5ff550567b3a43364a3ed05}
+      edges: {file_id: 6060c87d-d7d8-4950-a106-63811f949421, name: 04_network-edges.csv, sha256: fd48e07dd24918fd5d2ca7fd86d657ad4d316b66f9329c22edd299acd18e567a}
+    flow_column: Traffic_flow_trucks_2019
+    chunk_rows: 100000
+    # A manually added link (ferry or connector) with more than this share of its length
+    # on sea counts as sea over its whole length.
+    ferry_sea_share: 0.5
+  gisco:
+    countries: "https://gisco-services.ec.europa.eu/distribution/v2/countries/geojson/CNTR_RG_10M_2020_4326.geojson"
+  # Equal-area projection used for lengths and overlays.
+  crs: "EPSG:3035"
+  territorial_totals:
+    dft:
+      # DfT road traffic statistics, GB roads, all HGVs, vehicle-miles (sum over regions).
+      url: "https://storage.googleapis.com/dft-statistics/road-traffic/downloads/data-gov-uk/region_traffic_by_vehicle_type.csv"
+      source: "DfT region_traffic_by_vehicle_type (GB, all HGVs)"
+      miles_to_km: 1.609344
+      # GB covers the United Kingdom without Northern Ireland (UKN); scaled with the
+      # GB share of UK population in the latest year Eurostat has both.
+      covered_part: UKN
+    trafa:
+      # Trafikanalys t04010: heavy lorries 3.51-16 t, 16.01-26 t, > 26 t, million vkm on
+      # Swedish roads (Swedish and foreign vehicles).
+      url: "https://api.trafa.se/api/data?lang=sv&query=t04010|fslag:22,23,24|fordonkm|ar:{years}"
+      source: "Trafikanalys t04010 (heavy lorries)"
+      first_year: 2005
+    # CHE: BFS je-d-11.05.01.01 "Schwere Fahrzeuge" via the module's prepare_bfs_road_vkm.
+    overrides: {GBR: dft, SWE: trafa, CHE: bfs}
+  zenodo:
+    # Static inputs without a stable download (MULTIYEAR_PLAN.md §4.1). Only the German
+    # motorway toll series is read from it.
+    url: "https://zenodo.org/api/records/24509838/files/national_data.zip/content"
+    md5: 74cb2bd414351963795cbef24160e3ca
+    toll_file: national_data/de_toll_balm/de_toll_bab_by_nationality.csv
+    toll_sha256: 2d75ae04474610de0eee8825c266735dd065489252997cb8f86fd93b9e81ee87
+  # Countries whose international level of foreign trucks comes from motorway toll km by
+  # vehicle nationality (1000 km), where available.
+  toll_countries: [DEU]
+  # Share of foreign cabotage driven on the toll network (beta).
+  toll_cabotage_share: 1.0
+  # No cabotage rights (non-EU/EFTA) or island.
+  cabotage_zero: [ALB, BIH, MKD, MNE, SRB, XKX, ISL]
+  # No land borders: no international traffic.
+  islands: [ISL, CYP, MLT]
+  # Survey values treated as missing (logged): own hauliers' national (domestic) and
+  # international activity.
+  exclude:
+    MNE:
+      # National transport about 2 million vkm/year (16 vkm per capita in 2019, against
+      # 90-600 elsewhere).
+      domestic: all
+      own_international: all
+    MKD:
+      # National transport 10-13 million vkm/year, against 835 million vkm of national
+      # hauliers in MAKSTAT 560_Trans_MK_T39 (2019).
+      domestic: all
+      own_international: all
+  # Coverage correction of the foreign-hauliers index (MULTIYEAR_PLAN.md §6.6): if more
+  # than this share of the reference-year index comes from hauliers that no longer
+  # report (IRL from 2020: 99% UK hauliers), the index is left missing.
+  max_coverage_gap: 0.5
+  # Year-on-year change above which a level is flagged.
+  jump_flag: 0.25
