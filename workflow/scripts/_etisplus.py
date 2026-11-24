@@ -1,5 +1,6 @@
-"""ETISplus-based truck flows (Speth et al. 2022): domestic/international split and
-network vkm per country (MULTIYEAR_PLAN.md §4.2, §6.1).
+"""ETISplus-based truck flows (Speth et al. 2022): domestic/international split and network vkm.
+
+Per country, MULTIYEAR_PLAN.md §4.2, §6.1.
 
 Facts used [verified in exploration]: edge flows are both directions combined; the
 edges file has 2 exact duplicate rows (dropped); edge ID 2616216 is shared by two
@@ -84,15 +85,20 @@ def network_vkm_by_country(
     countries: gpd.GeoDataFrame,
     crs: str,
     ferry_sea_share: float,
+    sea_handling: str = "drop",
 ) -> pd.DataFrame:
     """Network vkm per country, domestic and international OD flows (§6.1 step 3).
 
     Each edge is a straight line between its nodes. Its vkm (flow x `Distance`) is
     shared by the length of the line inside each country polygon (`countries` with
-    column `CNTR_ID`). The part on sea goes half to the country of each end node
-    (nodes file). A manually added link with more than `ferry_sea_share` of its length
-    on sea counts as sea over its whole length. Returns `geo, etis_dom, etis_int` [vkm].
+    column `CNTR_ID`). A manually added link with more than `ferry_sea_share` of its
+    length on sea counts as sea over its whole length. The part on sea is dropped
+    (`sea_handling="drop"`: trucks on a ferry drive no road km and use no fuel) or goes
+    half to the country of each end node (`"ports"`, nodes file). Zero-length edges go
+    to their end node's country. Returns `geo, etis_dom, etis_int` [vkm].
     """
+    if sea_handling not in ("drop", "ports"):
+        raise ValueError(f"sea_handling must be 'drop' or 'ports', not {sea_handling!r}.")
     xy = nodes.set_index("Network_Node_ID")[["Network_Node_X", "Network_Node_Y"]]
     node_country = nodes.set_index("Network_Node_ID")["Country"].replace(ETIS_TO_EUROSTAT)
     a = xy.reindex(edges["Network_Node_A_ID"]).to_numpy()
@@ -112,8 +118,9 @@ def network_vkm_by_country(
     ferry = (edges["Manually_Added"].to_numpy() == 1) & (sea > ferry_sea_share)
     LOGGER.info("Ferry rule: %d manually added links counted as sea.", int(ferry.sum()))
     zero_length = (lines["length"].to_numpy() == 0)
-    sea = np.where(ferry | zero_length, 1.0, sea)
+    sea = np.where(ferry, 1.0, np.where(zero_length, 0.0, sea))
     land = land[~land["edge"].isin(np.flatnonzero(ferry | zero_length))]
+    to_ends = np.where(zero_length, 1.0, sea if sea_handling == "ports" else 0.0)
     vkm = {k: edges[f"flow_{k}"].to_numpy() * edges["Distance"].to_numpy() for k in ("dom", "int")}
     parts = [
         pd.DataFrame(
@@ -129,16 +136,17 @@ def network_vkm_by_country(
             pd.DataFrame(
                 {
                     "geo": node_country.reindex(edges[end]).to_numpy(),
-                    "etis_dom": vkm["dom"] * sea / 2,
-                    "etis_int": vkm["int"] * sea / 2,
+                    "etis_dom": vkm["dom"] * to_ends / 2,
+                    "etis_int": vkm["int"] * to_ends / 2,
                 }
             )
         )
     out = pd.concat(parts, ignore_index=True).groupby("geo", as_index=False).sum()
     total = vkm["dom"].sum() + vkm["int"].sum()
     LOGGER.info(
-        "Network vkm: %.4g total, %.4g attributed (%.1f%% on sea, split to end-node countries).",
+        "Network vkm: %.4g total, %.4g attributed (%.1f%% on sea, %s).",
         total, out[["etis_dom", "etis_int"]].to_numpy().sum(),
         100 * (sea * (vkm["dom"] + vkm["int"])).sum() / total,
+        "dropped" if sea_handling == "drop" else "split to end-node countries",
     )  # fmt: skip
     return out

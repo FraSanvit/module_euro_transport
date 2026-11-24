@@ -131,6 +131,7 @@ rule prepare_heavy_duty_network:
         codes=HD["country_codes"],
         crs=HD["crs"],
         ferry_sea_share=HD["etisplus"]["ferry_sea_share"],
+        sea_handling=HD["etisplus"]["sea_handling"],
     message:
         "ETISplus network vkm per country (overlay with GISCO country polygons)."
     script:

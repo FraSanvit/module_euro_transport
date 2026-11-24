@@ -275,6 +275,9 @@ heavy_duty:
     # A manually added link (ferry or connector) with more than this share of its length
     # on sea counts as sea over its whole length.
     ferry_sea_share: 0.5
+    # Network km on sea (ferries): `drop` (trucks on a ferry drive no road km and use no
+    # fuel; territorial road vkm) or `ports` (half to each end node's country).
+    sea_handling: drop
   gisco:
     countries: "https://gisco-services.ec.europa.eu/distribution/v2/countries/geojson/CNTR_RG_10M_2020_4326.geojson"
   # Equal-area projection used for lengths and overlays.

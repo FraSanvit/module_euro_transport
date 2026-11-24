@@ -1,7 +1,8 @@
 """ETISplus network vkm per country, domestic and international OD flows (MULTIYEAR_PLAN.md §6.1 step 3).
 
 Edges (straight lines between nodes) are overlaid with GISCO country polygons in an
-equal-area projection; sea parts go half to each end node's country. Reference flows
+equal-area projection; sea parts (ferries) are dropped, or go half to each end
+node's country (settings `sea_handling`). Reference flows
 (ETISplus 2019); used only for the reference-year calibration (§6.3).
 """
 
@@ -26,13 +27,13 @@ def to_iso3(network: pd.DataFrame, codes: dict) -> pd.DataFrame:
     return kept.sort_values("country_id", ignore_index=True)
 
 
-def main(edges_path, nodes_path, nodes_sha256, countries_path, codes, crs, ferry_sea_share, output_path):
+def main(edges_path, nodes_path, nodes_sha256, countries_path, codes, crs, ferry_sea_share, output_path, sea_handling="drop"):
     """Overlay the network with country polygons and write parquet."""
     verify_sha256(nodes_path, nodes_sha256)
     edges = pd.read_parquet(edges_path)
     nodes = pd.read_csv(nodes_path)
     countries = gpd.read_file(countries_path)
-    network = network_vkm_by_country(edges, nodes, countries, crs, ferry_sea_share)
+    network = network_vkm_by_country(edges, nodes, countries, crs, ferry_sea_share, sea_handling)
     to_iso3(network, codes).to_parquet(output_path, index=False)
 
 
@@ -50,5 +51,6 @@ if __name__ == "__main__":
         codes=snakemake.params.codes,  # noqa: F821
         crs=snakemake.params.crs,  # noqa: F821
         ferry_sea_share=snakemake.params.ferry_sea_share,  # noqa: F821
+        sea_handling=snakemake.params.sea_handling,  # noqa: F821
         output_path=snakemake.output.network,  # noqa: F821
     )

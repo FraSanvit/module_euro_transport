@@ -41,7 +41,7 @@ def test_split_flows_domestic_international_and_shared_ids():
 
 def test_network_vkm_by_country_land_and_sea():
     """Two square countries side by side; an edge across the border splits by length;
-    an edge over sea goes half to each end node's country."""
+    an edge over sea is dropped, or goes half to each end node's country ("ports")."""
     crs = "EPSG:3035"
     polys = gpd.GeoDataFrame({"CNTR_ID": ["AA", "BB"]}, geometry=[box(0, 0, 100, 100), box(100, 0, 200, 100)], crs=crs)
     nodes = gpd.GeoDataFrame(
@@ -61,12 +61,18 @@ def test_network_vkm_by_country_land_and_sea():
             "flow_int": [0.0, 60.0],
         }
     )
-    out = network_vkm_by_country(edges, nodes, polys, crs, ferry_sea_share=0.5).set_index("geo")
+    out = network_vkm_by_country(edges, nodes, polys, crs, ferry_sea_share=0.5, sea_handling="ports").set_index("geo")
     assert out.loc["AA", "etis_dom"] == pytest.approx(50, rel=1e-3)
     assert out.loc["BB", "etis_dom"] == pytest.approx(50, rel=1e-3)
     # Ferry (80% on sea) -> all sea -> half to AA, half to the end node in GR (Eurostat EL).
     assert out.loc["AA", "etis_int"] == pytest.approx(30)
     assert out.loc["EL", "etis_int"] == pytest.approx(30)
+    # Default: sea km dropped (no road km on a ferry); land unchanged.
+    drop = network_vkm_by_country(edges, nodes, polys, crs, ferry_sea_share=0.5).set_index("geo")
+    assert drop.loc["AA", "etis_dom"] == pytest.approx(50, rel=1e-3)
+    assert drop["etis_int"].sum() == pytest.approx(0, abs=1e-9)
+    with pytest.raises(ValueError, match="sea_handling"):
+        network_vkm_by_country(edges, nodes, polys, crs, ferry_sea_share=0.5, sea_handling="nope")
 
 
 def load(path):
