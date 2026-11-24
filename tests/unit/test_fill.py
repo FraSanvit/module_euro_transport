@@ -173,5 +173,5 @@ def test_settings_neighbours_are_valid():
     for country, names in neighbours.items():
         assert names and set(names) <= supported - set(neighbours), country
     assert {"ALB", "BIH", "MKD", "MNE", "SRB", "XKX", "ISL"} <= set(neighbours)
-    assert set(neighbours["MKD"]) == {"BGR", "HRV", "HUN", "ROU", "SVN"}
+    assert set(neighbours["MKD"]) == {"BGR", "GRC"} and neighbours["BIH"] == ["HRV"]
     assert len(VEHICLE_CATEGORIES) == 5

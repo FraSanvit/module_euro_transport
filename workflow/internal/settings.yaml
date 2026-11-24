@@ -190,14 +190,16 @@ gap_filling:
   # Gaps inside a series of at most this many consecutive years are filled by
   # linear interpolation; longer gaps are left missing.
   interpolation_max_years: 3
-  # Neighbour countries whose average ratios fill missing categories of a country.
-  # Neighbours are processed even when not configured; they must not need
-  # neighbours themselves.
+  # Neighbour countries whose average ratios fill missing values of a country, for
+  # all vehicle categories (same map as the heavy-duty method, MULTIYEAR_PLAN.md
+  # §6.9). Neighbours are processed even when not configured; they must not need
+  # neighbours themselves. XKX is not in the heavy-duty plan: it uses SRB's list,
+  # since all its direct neighbours are gap filled themselves.
   neighbours:
-    ALB: &balkans [BGR, HRV, HUN, ROU, SVN]
-    BIH: *balkans
-    MKD: *balkans
-    MNE: *balkans
-    SRB: *balkans
-    XKX: *balkans
-    ISL: [DNK, NOR, SWE]
+    ALB: [GRC]
+    BIH: [HRV]
+    MKD: [BGR, GRC]
+    MNE: [HRV]
+    SRB: [BGR, HRV, HUN, ROU]
+    XKX: [BGR, HRV, HUN, ROU]
+    ISL: [DNK, FIN, NOR, SWE]
