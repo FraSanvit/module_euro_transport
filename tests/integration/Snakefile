@@ -80,6 +80,7 @@ rule check_heavy_duty_levels:
     input:
         levels="resources/module/resources/automatic/heavy_duty/national_levels.parquet",
         calibration="resources/module/resources/automatic/heavy_duty/calibration.parquet",
+        filled="resources/module/resources/automatic/heavy_duty/national_levels_filled.parquet",
         manifest="resources/module/resources/automatic/heavy_duty/manifest.csv",
     output:
         "results/checks/heavy_duty_levels.done",

@@ -247,6 +247,28 @@ rule heavy_duty_national_levels:
         "../scripts/heavy_duty_national_levels.py"
 
 
+rule fill_heavy_duty_levels:
+    input:
+        levels=rules.heavy_duty_national_levels.output.levels,
+        gdp=f"{HD_DIR}/eurostat/nama_10_gdp.csv",
+    output:
+        levels=f"{HD_DIR}/national_levels_filled.parquet",
+    log:
+        "<logs>/fill_heavy_duty_levels.log",
+    conda:
+        "../envs/module.yaml"
+    params:
+        codes=HD["country_codes"],
+        years=hd_years(),
+        neighbours=internal["gap_filling"]["neighbours"],
+        max_years=internal["gap_filling"]["interpolation_max_years"],
+        settings=HD["fill"],
+    message:
+        "Fill the heavy-duty national levels for every country and year (own series, then neighbours)."
+    script:
+        "../scripts/fill_heavy_duty_levels.py"
+
+
 rule heavy_duty_manifest:
     input:
         files=lambda wc: list(hd_downloads()),

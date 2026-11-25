@@ -111,3 +111,32 @@ HeavyDutyCalibrationSchema = pa.DataFrameSchema(
     coerce=False,
 )
 """Heavy-duty reference-year calibration per country (MULTIYEAR_PLAN.md §6.3)."""
+
+_FILL_LABELS = ["observed", "interpolated", "own_trend", "outlier_replaced", "neighbours_gdp_pps",
+                "neighbours_gdp_eur", "neighbour_ratio", "neighbour_mean"]  # fmt: skip
+
+HeavyDutyFilledSchema = pa.DataFrameSchema(
+    {
+        "country_id": pa.Column(str, pa.Check.str_matches(r"^[A-Z]{3}$")),
+        "year": pa.Column(int, pa.Check.in_range(1990, 2100)),
+        **{name: pa.Column(float, pa.Check.ge(0)) for name in ["L_int"]},
+        **{name: pa.Column(float, **_NULLABLE_VKM) for name in ["L_int_foreign", "L_int_own", "CAB"]},
+        **{name: pa.Column(float, pa.Check.ge(0)) for name in ["L_dom", "L_long", "L_short", "total"]},
+        "alpha_E": pa.Column(float, pa.Check.in_range(0, 1)),
+        "T": pa.Column(float, **_NULLABLE_VKM),
+        "unit": pa.Column(str, pa.Check.eq("vkm")),
+        "source": pa.Column(str, nullable=True),
+        "flags": pa.Column(str, nullable=True),
+        **{name: pa.Column(str, pa.Check.isin(_FILL_LABELS))
+           for name in ["filled_L_dom", "filled_L_int", "filled_alpha_E"]},  # fmt: skip
+    },
+    unique=["country_id", "year"],
+    strict=True,
+    ordered=True,
+    coerce=False,
+)
+"""Heavy-duty national levels after gap filling, complete for every country and year (MULTIYEAR_PLAN.md §6.9).
+
+L_int + L_dom = total, L_long = alpha_E x L_dom, L_short = L_dom - L_long. `filled_*` says
+how each of the three filled series was obtained (observed or the fill method).
+"""

@@ -194,7 +194,8 @@ gap_filling:
   # all vehicle categories (same map as the heavy-duty method, MULTIYEAR_PLAN.md
   # §6.9). Neighbours are processed even when not configured; they must not need
   # neighbours themselves. XKX is not in the heavy-duty plan: it uses SRB's list,
-  # since all its direct neighbours are gap filled themselves.
+  # since all its direct neighbours are gap filled themselves. MLT uses CYP, the only
+  # similar island country.
   neighbours:
     ALB: [GRC]
     BIH: [HRV]
@@ -203,6 +204,7 @@ gap_filling:
     SRB: [BGR, HRV, HUN, ROU]
     XKX: [BGR, HRV, HUN, ROU]
     ISL: [DNK, FIN, NOR, SWE]
+    MLT: [CYP]
 # Heavy-duty vehicle-km: multi-year territorial level chain (MULTIYEAR_PLAN.md §6.3-§6.8).
 # Levels only; gap filling of countries and of intensive parameters from neighbours is
 # done later in the common gap-filling step.
@@ -259,6 +261,9 @@ heavy_duty:
       # Laden journeys (trip length) for estimating unreported empty km.
       road_go_ta_vm: "road_go_ta_vm/?"
       demo_r_pjanaggr3_uk: "demo_r_pjanaggr3/A.NR.T.TOTAL.UK+UKN/?"
+      # GDP in PPS and in euro: proxy for the domestic level of countries without a
+      # survey (MULTIYEAR_PLAN.md §6.9).
+      nama_10_gdp: "nama_10_gdp/A.CP_MPPS_EU27_2020+CP_MEUR.B1GQ.?"
     # International tonnes by reporting haulier x loading x unloading country, one file per year.
     road_go_ia_rc: "road_go_ia_rc/?startPeriod={year}&endPeriod={year}&"
   etisplus:
@@ -341,5 +346,14 @@ heavy_duty:
   # log average laden trip length (road_go_ta_vm) with this standard deviation (0.2 ~ +-20%
   # trip length); separately for national and international transport (§6.4).
   empty_km_bandwidth: 0.2
+  # Gap filling of the national levels (MULTIYEAR_PLAN.md §6.9): gaps at the start or end
+  # of a country's own ratio series follow a Theil-Sen trend over the nearest
+  # `trend_years` observed years, clipped to their range; alpha_E values more than
+  # `outlier_mad` robust standard deviations and `outlier_min_abs` from the country's
+  # median are replaced.
+  fill:
+    trend_years: 5
+    outlier_mad: 4
+    outlier_min_abs: 0.2
   # Year-on-year change above which a level is flagged.
   jump_flag: 0.25

@@ -38,6 +38,20 @@ for country in ["BIH", "MKD", "XKX", "ISL"]:
 for country in ["BEL", "NLD", "LUX", "NOR"]:
     assert 0.3e9 < y.loc[country, "total"] < 10e9, country
 
+# After gap filling: every country and year complete, components consistent (§6.9).
+filled = pd.read_parquet(snakemake.input.filled)  # noqa: F821
+assert set(countries) <= set(filled["country_id"])
+assert not filled[["L_int", "L_dom", "L_long", "L_short", "total", "alpha_E"]].isna().any().any()
+assert np.allclose(filled["L_int"] + filled["L_dom"], filled["total"], rtol=1e-9)
+assert np.allclose(filled["L_long"], filled["alpha_E"] * filled["L_dom"], rtol=1e-9)
+f19 = filled[filled["year"] == 2019].set_index("country_id")
+for country in ["BIH", "MKD", "XKX", "ISL"]:
+    assert f19.loc[country, "filled_L_dom"].startswith("neighbours_gdp"), country
+    assert 0.02e9 < f19.loc[country, "total"] < 2e9, country
+assert f19.loc["XKX", "filled_L_dom"] == "neighbours_gdp_eur"
+observed = filled.merge(levels, on=["country_id", "year"], suffixes=("", "_raw")).dropna(subset=["total_raw"])
+assert np.allclose(observed["total"], observed["total_raw"], rtol=1e-9)  # observed totals unchanged
+
 # Every download is in the manifest with a checksum; ETISplus matches Mendeley's.
 assert manifest["sha256"].str.len().eq(64).all()
 etis = manifest[manifest["path"].str.contains("/etisplus/")]
