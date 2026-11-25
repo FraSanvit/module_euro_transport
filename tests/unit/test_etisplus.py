@@ -6,7 +6,7 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 import yaml
-from _etisplus import network_vkm_by_country, split_flows
+from _etisplus import add_zone_legs, legs_by_zone, network_vkm_by_country, split_flows, zone_legs
 from shapely.geometry import box
 
 MODULE_ROOT = Path(__file__).parents[2]
@@ -91,6 +91,36 @@ def test_network_vkm_by_country_land_and_sea():
     assert kept.loc["EL", "etis_int"] == pytest.approx(10, rel=1e-3)
     with pytest.raises(ValueError, match="sea_handling"):
         network_vkm_by_country(edges, nodes, polys, crs, ferry_sea_share=0.5, sea_handling="nope")
+
+
+def test_zone_legs_first_and_last_leg_per_zone():
+    """First leg to the origin zone, last leg to the destination zone, by OD type."""
+    zones = pd.Series({100: "AA", 101: "AA", 200: "GR"})
+    od = pd.DataFrame(
+        {
+            "ID_origin_region": [100, 100, 101],
+            "ID_destination_region": [101, 200, 100],
+            "Distance_from_origin_region_to_E_road": [10.0, 4.0, 1.0],
+            "Distance_from_E_road_to_destination_region": [5.0, 30.0, 2.0],
+            "flow": [2.0, 3.0, 0.0],  # zero flow ignored
+        }
+    )
+    regions = pd.DataFrame({"ETISPlus_Zone_ID": [100, 101, 200], "Country": ["AA", "AA", "GR"],
+                            "Geometric_center_X": [1.0, 2, 3], "Geometric_center_Y": [4.0, 5, 6]})  # fmt: skip
+    half = len(od) // 2
+    legs = legs_by_zone([zone_legs(od.iloc[:half], zones, "flow"), zone_legs(od.iloc[half:], zones, "flow")], regions)
+    legs = legs.set_index("zone")
+    assert legs.loc[100, "legs_dom"] == pytest.approx(2 * 10)
+    assert legs.loc[100, "legs_int"] == pytest.approx(3 * 4)
+    assert legs.loc[101, "legs_dom"] == pytest.approx(2 * 5)
+    assert legs.loc[200, "legs_int"] == pytest.approx(3 * 30)
+    assert legs.loc[200, "geo"] == "EL"  # ETISplus GR -> Eurostat EL
+    network = pd.DataFrame({"geo": ["AA", "BB"], "etis_dom": [100.0, 50], "etis_int": [40.0, 10]})
+    out = add_zone_legs(network, legs.reset_index()).set_index("geo")
+    assert out.loc["AA", "etis_dom_legs"] == pytest.approx(30)
+    assert out.loc["AA", "etis_int_legs"] == pytest.approx(12)
+    assert out.loc["BB", "etis_int_legs"] == 0  # no zones: no legs
+    assert "EL" not in out.index  # only countries with a network row
 
 
 def load(path):

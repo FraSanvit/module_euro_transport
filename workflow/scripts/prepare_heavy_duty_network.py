@@ -2,7 +2,9 @@
 
 Edges (straight lines between nodes) are overlaid with GISCO country polygons in an
 equal-area projection; sea parts (ferries) are dropped, or go half to each end
-node's country (settings `sea_handling`). Reference flows
+node's country (settings `sea_handling`). The first and last legs of the trips (to and
+from the E-road network) are added per country from the zones they start or end in
+(§6.1 step 4). Reference flows
 (ETISplus 2019); used only for the reference-year calibration (§6.3).
 """
 
@@ -10,7 +12,7 @@ import logging
 
 import geopandas as gpd
 import pandas as pd
-from _etisplus import network_vkm_by_country
+from _etisplus import add_zone_legs, network_vkm_by_country
 from _heavy_duty import verify_sha256
 
 LOGGER = logging.getLogger(__name__)
@@ -27,13 +29,18 @@ def to_iso3(network: pd.DataFrame, codes: dict) -> pd.DataFrame:
     return kept.sort_values("country_id", ignore_index=True)
 
 
-def main(edges_path, nodes_path, nodes_sha256, countries_path, codes, crs, ferry_sea_share, output_path, sea_handling="drop"):
+def main(
+    edges_path, nodes_path, nodes_sha256, countries_path, codes, crs, ferry_sea_share, output_path,
+    sea_handling="drop", legs_path=None,
+):  # fmt: skip
     """Overlay the network with country polygons and write parquet."""
     verify_sha256(nodes_path, nodes_sha256)
     edges = pd.read_parquet(edges_path)
     nodes = pd.read_csv(nodes_path)
     countries = gpd.read_file(countries_path)
     network = network_vkm_by_country(edges, nodes, countries, crs, ferry_sea_share, sea_handling)
+    if legs_path is not None:
+        network = add_zone_legs(network, pd.read_parquet(legs_path))
     to_iso3(network, codes).to_parquet(output_path, index=False)
 
 
@@ -52,5 +59,6 @@ if __name__ == "__main__":
         crs=snakemake.params.crs,  # noqa: F821
         ferry_sea_share=snakemake.params.ferry_sea_share,  # noqa: F821
         sea_handling=snakemake.params.sea_handling,  # noqa: F821
+        legs_path=snakemake.input.legs,  # noqa: F821
         output_path=snakemake.output.network,  # noqa: F821
     )

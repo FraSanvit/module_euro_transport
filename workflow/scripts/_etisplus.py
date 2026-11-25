@@ -72,6 +72,66 @@ def split_flows(od_chunks, zone_country: pd.Series, edges: pd.DataFrame, flow_co
     return out
 
 
+LEG_COLUMNS = ("Distance_from_origin_region_to_E_road", "Distance_from_E_road_to_destination_region")
+"""OD columns of the first leg (origin zone -> E-road network) and last leg (E-road -> destination zone)."""
+
+
+def zone_legs(chunk: pd.DataFrame, zone_country: pd.Series, flow_column: str) -> pd.DataFrame:
+    """First and last legs of OD flows per zone, domestic / international (§6.1 step 4).
+
+    The first leg is driven in the origin zone, the last leg in the destination zone;
+    neither is on an E-road edge. Returns `zone, kind (dom | int), legs` [vkm] for the chunk.
+    """
+    chunk = chunk[chunk[flow_column] > 0]
+    origin = zone_country.reindex(chunk["ID_origin_region"]).to_numpy()
+    destination = zone_country.reindex(chunk["ID_destination_region"]).to_numpy()
+    kind = np.where(origin == destination, "dom", "int")
+    flow = chunk[flow_column].to_numpy()
+    parts = pd.DataFrame(
+        {
+            "zone": np.concatenate([chunk["ID_origin_region"].to_numpy(), chunk["ID_destination_region"].to_numpy()]),
+            "kind": np.concatenate([kind, kind]),
+            "legs": np.concatenate([flow * chunk[LEG_COLUMNS[0]].to_numpy(), flow * chunk[LEG_COLUMNS[1]].to_numpy()]),
+        }
+    )
+    return parts.groupby(["zone", "kind"], as_index=False)["legs"].sum()
+
+
+def legs_by_zone(parts, regions: pd.DataFrame) -> pd.DataFrame:
+    """Sum the `zone_legs` results per zone.
+
+    One row per zone with `zone, geo` (Eurostat code), the zone centre `x, y` (lon/lat)
+    and `legs_dom, legs_int` [vkm].
+    """
+    legs = pd.concat(parts).groupby(["zone", "kind"])["legs"].sum().unstack("kind")
+    legs = legs.reindex(columns=["dom", "int"]).fillna(0.0)
+    zones = regions.set_index("ETISPlus_Zone_ID")
+    out = pd.DataFrame(
+        {
+            "zone": legs.index.to_numpy(),
+            "geo": zones["Country"].reindex(legs.index).replace(ETIS_TO_EUROSTAT).to_numpy(),
+            "x": zones["Geometric_center_X"].reindex(legs.index).to_numpy(),
+            "y": zones["Geometric_center_Y"].reindex(legs.index).to_numpy(),
+            "legs_dom": legs["dom"].to_numpy(),
+            "legs_int": legs["int"].to_numpy(),
+        }
+    )
+    LOGGER.info(
+        "First and last legs: %.4g vkm domestic, %.4g vkm international, %d zones.",
+        out["legs_dom"].sum(), out["legs_int"].sum(), len(out),
+    )  # fmt: skip
+    return out
+
+
+def add_zone_legs(network: pd.DataFrame, legs: pd.DataFrame) -> pd.DataFrame:
+    """Add the first and last legs of each country's zones: `etis_dom_legs, etis_int_legs` [vkm]."""
+    per_country = legs.groupby("geo")[["legs_dom", "legs_int"]].sum()
+    per_country.columns = ["etis_dom_legs", "etis_int_legs"]
+    out = network.set_index("geo").join(per_country, how="left")
+    out[["etis_dom_legs", "etis_int_legs"]] = out[["etis_dom_legs", "etis_int_legs"]].fillna(0.0)
+    return out.reset_index()
+
+
 def check_split(edges: pd.DataFrame, flow_column: str) -> float:
     """Ratio of rebuilt (domestic + international) to published edge flow; logged."""
     ratio = (edges["flow_dom"] + edges["flow_int"]).sum() / edges[flow_column].sum()

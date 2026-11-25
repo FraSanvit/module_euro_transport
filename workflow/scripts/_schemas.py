@@ -91,7 +91,7 @@ vkm columns (territorial): L_int (international, incl. transit), L_dom = L_long 
 empty vkm), CAB (foreign cabotage vkm), D (domestic statistic), I_f / I_f_corrected (foreign
 hauliers' international tonnes), J_o (own hauliers' international tonnes), I_o (own
 hauliers' international vkm), alpha_E (laden vkm share of journeys >= 50 km), s_long
-(long-haul share of domestic vkm, f_net x alpha_E), T (territorial total).
+(long-haul share of domestic vkm, = alpha_E), T (territorial total).
 """
 
 HeavyDutyCalibrationSchema = pa.DataFrameSchema(
@@ -100,7 +100,7 @@ HeavyDutyCalibrationSchema = pa.DataFrameSchema(
         "reference_year": pa.Column(int),
         **{
             name: pa.Column(float, **_NULLABLE_VKM)
-            for name in ["etis_int", "etis_dom", "L_int0", "L_dom0", "w0", "r_f", "r_o",
+            for name in ["etis_int", "etis_dom", "etis_int_legs", "etis_dom_legs", "L_int0", "L_dom0", "w0", "r_f", "r_o",
                          "gamma"]
         },
         "calibration_flags": pa.Column(str),

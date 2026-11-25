@@ -101,6 +101,7 @@ rule split_etisplus_od_flows:
         edges=f"{HD_DIR}/etisplus/edges.csv",
     output:
         edges=f"{HD_DIR}/etisplus_edges_split.parquet",
+        legs=f"{HD_DIR}/etisplus_zone_legs.parquet",
     log:
         "<logs>/split_etisplus_od_flows.log",
     conda:
@@ -118,6 +119,7 @@ rule split_etisplus_od_flows:
 rule prepare_heavy_duty_network:
     input:
         edges=rules.split_etisplus_od_flows.output.edges,
+        legs=rules.split_etisplus_od_flows.output.legs,
         nodes=f"{HD_DIR}/etisplus/nodes.csv",
         countries=f"{HD_DIR}/gisco/countries.geojson",
     output:

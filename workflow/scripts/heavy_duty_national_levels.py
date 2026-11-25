@@ -63,13 +63,13 @@ def main(
     toll = with_geo(pd.read_parquet(toll_path), codes) if toll_path else None
     geo_islands = [codes[c] for c in islands if c in codes]
     geo_toll = [codes[c] for c in toll_countries if c in codes]
-    k, f_net = parameters["k"], parameters["f_net"]
+    k = parameters["k"]
     calibration = calibrate(
         stats, network, totals, toll, reference_year, k,
         geo_islands, geo_toll, toll_cabotage_share, countries=list(codes.values()),
     )  # fmt: skip
     levels = annual_levels(
-        stats, calibration, totals, toll, years, f_net, geo_islands, geo_toll,
+        stats, calibration, totals, toll, years, geo_islands, geo_toll,
         toll_cabotage_share, jump,
     )  # fmt: skip
     levels = to_output(levels, codes, totals)

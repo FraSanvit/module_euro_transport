@@ -16,7 +16,6 @@ from _heavy_duty import (
     international_index,
     laden_trip_length,
     link_distance_class_break,
-    long_haul_share,
     override_split,
     short_trip_share,
     survey_activity,
@@ -67,7 +66,7 @@ def test_zero_missing_empty_lower_bound(caplog):
     stats["empty_zero_nat"] = stats["geo"] == "AA"
     stats["empty_zero_intl"] = ((stats["geo"] == "AA") & (stats["year"] == 2020)) | (stats["geo"] == "TT")
     cal = calibrate(stats, network, totals, toll, T0, 1.0, ["BB"], ["DE"])
-    lv = annual_levels(stats, cal, totals, toll, [T0, 2020], 0.9, ["BB"], ["DE"]).set_index(["geo", "year"])
+    lv = annual_levels(stats, cal, totals, toll, [T0, 2020], ["BB"], ["DE"]).set_index(["geo", "year"])
     assert "empty_km_zero_lower_bound" in lv.loc[("AA", T0), "flags"]
     assert "empty_km_zero_lower_bound" not in lv.loc[("BB", T0), "flags"]
     assert "own_int_empty_km_zero_lower_bound" in lv.loc[("AA", 2020), "flags"]
@@ -191,12 +190,6 @@ def test_international_index_foreign_own_transit_and_coverage(caplog):
     assert strict.loc[("AA", T0), "I_f_corrected"] == pytest.approx(15e3)
 
 
-def test_long_haul_share():
-    s = long_haul_share(pd.Series([0.5, 1.0, np.nan]), f_net=0.9)
-    assert s.tolist()[:2] == pytest.approx([0.45, 0.9])  # never above f_net: no cap needed
-    assert np.isnan(s.iloc[2])  # missing alpha_E stays missing (filled later)
-
-
 def test_link_distance_class_break(caplog):
     years = [2020, 2021, 2022, 2023]
     index = pd.MultiIndex.from_product([["AA"], years], names=["geo", "year"])
@@ -256,7 +249,7 @@ def chain_inputs():
 def run_chain(k=1.0):
     stats, network, totals, toll = chain_inputs()
     cal = calibrate(stats, network, totals, toll, T0, k, ["BB"], ["DE"])
-    levels = annual_levels(stats, cal, totals, toll, [T0, 2020], 0.9, ["BB"], ["DE"])
+    levels = annual_levels(stats, cal, totals, toll, [T0, 2020], ["BB"], ["DE"])
     return cal.set_index("geo"), levels.set_index(["geo", "year"])
 
 
@@ -277,13 +270,24 @@ def test_calibration():
     assert cal.loc["DE", "gamma"] == pytest.approx(1.0)
 
 
+def test_calibration_includes_first_and_last_legs():
+    """L_int0 = k x (international E-road vkm + first and last legs in the country's zones)."""
+    stats, network, totals, toll = chain_inputs()
+    network["etis_int_legs"] = [6.0, 6, 6, 6]
+    network["etis_dom_legs"] = [3.0, 3, 3, 3]
+    cal = calibrate(stats, network, totals, toll, T0, 1.0, ["BB"], ["DE"]).set_index("geo")
+    assert cal.loc["AA", "L_int0"] == pytest.approx(66)
+    assert cal.loc["AA", "etis_dom_legs"] == pytest.approx(3)
+    assert cal.loc["BB", "L_int0"] == 0  # island
+
+
 def test_annual_levels_chain():
     _, lv = run_chain()
     aa = lv.loc[("AA", 2020)]
     assert aa["L_int_foreign"] == pytest.approx(0.6 * 55)
     assert aa["L_int_own"] == pytest.approx(0.75 * 44)
-    assert aa["L_long"] == pytest.approx(0.45 * 110)  # f_net 0.9 x alpha_E 0.5
-    assert aa["L_short"] == pytest.approx(0.55 * 110)
+    assert aa["L_long"] == pytest.approx(0.5 * 110)  # alpha_E 0.5
+    assert aa["L_short"] == pytest.approx(0.5 * 110)
     assert aa["total"] == pytest.approx(aa["L_int"] + 110)
     assert lv.loc[("AA", T0), "total"] == pytest.approx(60 + 100)  # reproduces the calibration
     assert lv.loc[("BB", 2020), "L_int"] == 0
@@ -305,20 +309,20 @@ def test_missing_inputs_stay_missing():
     stats, network, totals, toll = chain_inputs()
     stats.loc[stats["geo"] == "AA", ["D", "ENAT"]] = np.nan
     cal = calibrate(stats, network, totals, toll, T0, 1.0, ["BB"], ["DE"])
-    lv = annual_levels(stats, cal, totals, toll, [T0, 2020], 0.9, ["BB"], ["DE"]).set_index(["geo", "year"])
+    lv = annual_levels(stats, cal, totals, toll, [T0, 2020], ["BB"], ["DE"]).set_index(["geo", "year"])
     assert np.isnan(lv.loc[("AA", 2020), "total"])
     assert not np.isnan(lv.loc[("AA", 2020), "L_int"])  # international still computed
 
 
 def test_long_haul_share_follows_distance_classes_each_year():
-    """L_long = f_net * alpha_E * D, with alpha_E of that year (§6.7)."""
+    """L_long = alpha_E * D, with alpha_E of that year (§6.7)."""
     stats, network, totals, toll = chain_inputs()
     stats.loc[(stats["geo"] == "AA") & (stats["year"] == 2020), "alpha_E"] = 0.95
     stats.loc[(stats["geo"] == "BB") & (stats["year"] == 2020), "alpha_E"] = np.nan
     cal = calibrate(stats, network, totals, toll, T0, 1.0, ["BB"], ["DE"])
-    lv = annual_levels(stats, cal, totals, toll, [T0, 2020], 0.9, ["BB"], ["DE"]).set_index(["geo", "year"])
-    assert lv.loc[("AA", T0), "L_long"] == pytest.approx(0.45 * 100)
-    assert lv.loc[("AA", 2020), "L_long"] == pytest.approx(0.9 * 0.95 * 110)  # no cap
+    lv = annual_levels(stats, cal, totals, toll, [T0, 2020], ["BB"], ["DE"]).set_index(["geo", "year"])
+    assert lv.loc[("AA", T0), "L_long"] == pytest.approx(0.5 * 100)
+    assert lv.loc[("AA", 2020), "L_long"] == pytest.approx(0.95 * 110)  # no cap
     assert np.isnan(lv.loc[("BB", 2020), "L_long"])  # alpha_E missing: split left to the fill step
     assert lv.loc[("BB", 2020), "L_dom"] == pytest.approx(110)
     assert "long_short_split_missing" in lv.loc[("BB", 2020), "flags"]

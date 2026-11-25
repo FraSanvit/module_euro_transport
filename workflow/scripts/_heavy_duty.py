@@ -446,15 +446,6 @@ def apply_exclusions(stats: pd.DataFrame, exclude: dict, codes: dict) -> pd.Data
 # ----------------------------------------------------------------------------- levels
 
 
-def long_haul_share(alpha_e, f_net: float):
-    """s_long = f_net * alpha_E (§6.7): share of domestic vkm on the long-haul network.
-
-    alpha_E (laden vkm in journeys of 50 km or more) is within [0, 1], so s_long <= f_net
-    and the short-haul part keeps at least 1 - f_net. Missing where alpha_E is missing.
-    """
-    return f_net * alpha_e
-
-
 def override_split(total, l_int, floor):
     """Fit components into a territorial total (§6.8).
 
@@ -480,7 +471,8 @@ def calibrate(
 ) -> pd.DataFrame:
     """Reference-year calibration per country (§6.3). All inputs keyed by `geo`.
 
-    `stats` from `statistics` (incl. `D`), `network` has `geo, etis_dom, etis_int`
+    `stats` from `statistics` (incl. `D`), `network` has `geo, etis_dom, etis_int` and
+    optionally `etis_dom_legs, etis_int_legs` (first and last legs, §6.1 step 4)
     (vkm, reference flows), `totals` has `geo, year, T`, `toll` has `geo, year,
     toll_foreign` (vkm). `countries` lists the `geo` codes to calibrate (default: all
     in the inputs); countries without inputs get a row of missing values. Returns per
@@ -502,7 +494,9 @@ def calibrate(
             flags.append("own_int_empty_zero_t0")  # r_o then scales a laden-only index
         etis_int = net["etis_int"].get(geo, np.nan)
         etis_dom = net["etis_dom"].get(geo, np.nan)
-        l_int0 = 0.0 if geo in islands else k * etis_int
+        legs_int = net["etis_int_legs"].get(geo, 0.0) if "etis_int_legs" in net else 0.0
+        legs_dom = net["etis_dom_legs"].get(geo, 0.0) if "etis_dom_legs" in net else 0.0
+        l_int0 = 0.0 if geo in islands else k * (etis_int + legs_int)
         floor = st.get("LNAT", np.nan) + st.get("ENAT", np.nan)
         d0 = st.get("D", np.nan)
         if geo in t0.index and not np.isnan(l_int0):
@@ -531,7 +525,8 @@ def calibrate(
             gamma = l_f0 / (tf - toll_cabotage_share * cab0)
         rows.append(
             {
-                "geo": geo, "etis_int": etis_int, "etis_dom": etis_dom, "L_int0": l_int0,
+                "geo": geo, "etis_int": etis_int, "etis_dom": etis_dom, "etis_int_legs": legs_int,
+                "etis_dom_legs": legs_dom, "L_int0": l_int0,
                 "L_dom0": d0, "w0": w0, "r_f": r_f, "r_o": r_o, "gamma": gamma,
                 "calibration_flags": ";".join(flags),
             }
@@ -545,7 +540,6 @@ def annual_levels(
     totals: pd.DataFrame,
     toll: pd.DataFrame | None,
     years: list[int],
-    f_net: float,
     islands=(),
     toll_countries=(),
     toll_cabotage_share=1.0,
@@ -564,7 +558,7 @@ def annual_levels(
     keys = pd.MultiIndex.from_product([sorted(cal.index), years], names=["geo", "year"])
     out = st.reindex(keys)
     out["T"] = tot.reindex(keys)
-    out["s_long"] = long_haul_share(out["alpha_E"], f_net)
+    out["s_long"] = out["alpha_E"]  # long-haul share: journeys of 50 km or more (§6.7)
     geo = out.index.get_level_values("geo")
     c = cal.reindex(geo)
     flags = [[] for _ in range(len(out))]

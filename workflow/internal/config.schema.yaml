@@ -49,16 +49,10 @@ properties:
         default: {}
         properties:
           k:
-            description: Calibration of ETISplus network vkm to traffic counts.
+            description: Calibration of ETISplus vkm to traffic counts.
             type: number
             exclusiveMinimum: 0
             default: 1.0
-          f_net:
-            description: Share of a domestic ETISplus trip's length on the network (rest is access and egress, allocated as short-haul).
-            type: number
-            exclusiveMinimum: 0
-            maximum: 1
-            default: 0.86
       cabotage:
         type: object
         additionalProperties: false
