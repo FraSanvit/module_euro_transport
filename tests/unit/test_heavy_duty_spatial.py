@@ -173,3 +173,19 @@ def test_aggregate_to_shapes_with_diagnostics(tmp_path):
     assert d.loc["AAA", "vkm_in_other_country_shapes"] == pytest.approx(2)  # cell 1 of AAA in S2 (BBB)
     assert d.loc["BBB", "vkm_outside_shapes"] == pytest.approx(8)
     assert isinstance(table, pd.DataFrame) and set(table["vehicle_category"]) == {"heavy_duty"}
+
+
+def test_population_to_grid_conserves_mass(tmp_path):
+    from prepare_heavy_duty_population import to_grid
+
+    # Source: 4 x 4 cells of 1 km in EPSG:3035, offset by half a cell from the grid.
+    src_transform, src_shape = grid_from_bounds((10_000, 10_000, 14_000, 14_000), 1000)
+    source = np.arange(16, dtype="float32").reshape(src_shape)
+    write_raster(tmp_path / "src.tif", source, src_transform, CRS)
+    from rasterio.transform import from_origin
+
+    transform = from_origin(9_500, 14_500, 1000, 1000)
+    profile = {"transform": transform, "height": 5, "width": 5, "crs": CRS}
+    out = to_grid(str(tmp_path / "src.tif"), profile, split=2)
+    assert out.sum() == pytest.approx(source.sum())
+    assert out[0, 0] == pytest.approx(source[0, 0] / 4)  # a quarter of the corner cell
