@@ -1,12 +1,14 @@
 """Heavy-duty vkm rasters for one year: national levels spread over their keys (MULTIYEAR_PLAN.md §6.10).
 
-vkm[cell, component] = level_c,component x key_cell / sum of the key over the cells of c.
+vkm[cell, component] = level_c,component x key_cell / sum of the key over the cells of c,
+computed by gregor (disaggregate_polygon_to_raster) on one combined key per component.
 Keys: international -> ETISplus international (E-roads + first and last legs);
 domestic long-haul -> ETISplus domestic (for countries ETISplus does not cover: the
 international key); domestic short-haul -> NUTS-3 tonnes x population. A key that sums
 to zero in a country falls back to the short-haul key, then to an even spread (e.g.
-islands without a network: CYP, ISL, MLT). Cells
-belong to the country containing their centre. Conservation is checked per country.
+islands without a network: CYP, ISL, MLT); the key is chosen per country before gregor
+is called. Cells belong to the country containing their centre (the grid's country
+polygons). Conservation is checked per country.
 """
 
 import logging
@@ -14,8 +16,11 @@ import logging
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from _raster import read_raster, write_raster
+import rioxarray  # noqa: F401 (registers the .rio accessor)
+import xarray as xr
+from _raster import cell_centres, read_raster, write_raster
 from _short_haul import short_haul_key
+from gregor.disaggregate import disaggregate_polygon_to_raster
 from prepare_heavy_duty_etisplus_keys import population_for_year
 
 LOGGER = logging.getLogger(__name__)
@@ -24,21 +29,30 @@ NOT_COVERED = "etisplus_not_covering"
 TOLERANCE = 1e-6
 
 
-def allocate(level: np.ndarray, keys: list[np.ndarray], orders: list[list[int]], ids: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Spread `level` (per country) over the first key of the country's order with a positive sum.
-
-    `orders[c]` lists indices into `keys` for country c. Returns the raster and the key
-    index used per country.
-    """
+def choose_keys(keys: list[np.ndarray], orders: list[list[int]], ids: np.ndarray) -> np.ndarray:
+    """Per country, the first key of its order (indices into `keys`) with a positive sum."""
     valid = ids >= 0
-    n = len(level)
+    n = len(orders)
     sums = np.array([np.bincount(ids[valid], weights=k[valid], minlength=n) for k in keys])
-    used = np.array([next((i for i in order if sums[i, c] > 0), order[-1]) for c, order in enumerate(orders)])
+    return np.array([next((i for i in order if sums[i, c] > 0), order[-1]) for c, order in enumerate(orders)])
+
+
+def combined_key(keys: list[np.ndarray], used: np.ndarray, ids: np.ndarray) -> np.ndarray:
+    """One key raster: each country's cells from the key chosen for it; 0 outside countries."""
+    valid = ids >= 0
     out = np.zeros(ids.shape)
-    key_values = np.choose(used[ids[valid]], [k[valid] for k in keys])
-    denominator = sums[used, np.arange(n)][ids[valid]]
-    out[valid] = np.where(denominator > 0, level[ids[valid]] * key_values / np.where(denominator > 0, denominator, 1), 0.0)
-    return out, used
+    out[valid] = np.choose(used[ids[valid]], [k[valid] for k in keys])
+    return out
+
+
+def allocate(polygons: gpd.GeoDataFrame, level: np.ndarray, key: np.ndarray, profile) -> np.ndarray:
+    """Spread `level` (one value per polygon) over `key` with gregor (normalised within each polygon)."""
+    x, y = cell_centres(profile["transform"], (profile["height"], profile["width"]))
+    proxy = xr.DataArray(key, coords={"y": y, "x": x}, dims=("y", "x"))
+    proxy = proxy.rio.write_crs(profile["crs"]).rio.write_transform(profile["transform"])
+    data = polygons[["geometry"]].assign(level=level)
+    out = disaggregate_polygon_to_raster(data, "level", proxy).to_numpy()
+    return np.nan_to_num(out, nan=0.0)
 
 
 def main(
@@ -48,7 +62,8 @@ def main(
     """Write the three component rasters of `year` and the conservation report."""
     ids, profile = read_raster(grid_path)
     ids = ids.astype("int32")
-    countries = gpd.read_parquet(polygons_path)["country_id"].tolist()
+    polygons = gpd.read_parquet(polygons_path)
+    countries = polygons["country_id"].tolist()
     levels = pd.read_parquet(levels_path)
     levels = levels[levels["year"] == year].set_index("country_id").reindex(countries)
     missing = levels.index[levels["total"].isna()].tolist()
@@ -84,7 +99,8 @@ def main(
     valid = ids >= 0
     for component, (keys, orders) in plans.items():
         level = levels[COMPONENTS[component]].to_numpy(dtype="float64")
-        raster, used = allocate(level, keys, orders, ids)
+        used = choose_keys(keys, orders, ids)
+        raster = allocate(polygons, level, combined_key(keys, used, ids), profile)
         raster32 = raster.astype("float32")
         sums = np.bincount(ids[valid], weights=raster32[valid].astype("float64"), minlength=len(countries))
         for c, country in enumerate(countries):

@@ -135,18 +135,23 @@ def test_population_for_year(tmp_path):
     assert population_for_year(paths, 2024)[0, 0] == pytest.approx(20)
 
 
-def test_allocate_conserves_levels_and_falls_back():
-    from allocate_heavy_duty_vkm import allocate
+def test_allocate_with_gregor_conserves_levels_and_falls_back():
+    from allocate_heavy_duty_vkm import allocate, choose_keys, combined_key
 
-    ids = np.array([[0, 0, 1, 1, -1]])
-    primary = np.array([[1.0, 3.0, 0.0, 0.0, 9.0]])  # country 1: zero primary key
+    transform, shape = grid_from_bounds((0, 0, 5, 1), 1)
+    profile = {"transform": transform, "height": shape[0], "width": shape[1], "crs": CRS}
+    polygons = gpd.GeoDataFrame({"country_id": ["AAA", "BBB"]}, geometry=[box(0, 0, 2, 1), box(2, 0, 4, 1)], crs=CRS)
+    ids = rasterize_ids(polygons.geometry, transform, shape)
+    assert ids.tolist() == [[0, 0, 1, 1, -1]]
+    primary = np.array([[1.0, 3.0, 0.0, 0.0, 9.0]])  # BBB: zero primary key
     secondary = np.array([[1.0, 1.0, 2.0, 6.0, 9.0]])
-    level = np.array([8.0, 4.0])
-    out, used = allocate(level, [primary, secondary], [[0, 1], [0, 1]], ids)
-    assert out[0].tolist() == pytest.approx([2, 6, 1, 3, 0])  # outside any country: 0
+    used = choose_keys([primary, secondary], [[0, 1], [0, 1]], ids)
     assert used.tolist() == [0, 1]
-    out, used = allocate(level, [primary, secondary], [[1], [1]], ids)  # order chosen per country
-    assert out[0, :2].tolist() == pytest.approx([4, 4]) and used.tolist() == [1, 1]
+    key = combined_key([primary, secondary], used, ids)
+    assert key[0].tolist() == [1, 3, 2, 6, 0]
+    out = allocate(polygons, np.array([8.0, 4.0]), key, profile)
+    assert out[0].tolist() == pytest.approx([2, 6, 1, 3, 0])  # outside any country: 0
+    assert choose_keys([primary, secondary], [[1], [1]], ids).tolist() == [1, 1]  # order per country
 
 
 def test_aggregate_to_shapes_with_diagnostics(tmp_path):
