@@ -71,6 +71,24 @@ def test_network_vkm_by_country_land_and_sea():
     drop = network_vkm_by_country(edges, nodes, polys, crs, ferry_sea_share=0.5).set_index("geo")
     assert drop.loc["AA", "etis_dom"] == pytest.approx(50, rel=1e-3)
     assert drop["etis_int"].sum() == pytest.approx(0, abs=1e-9)
+    # Road edges (not manually added) crossing water keep their full vkm: half on land in
+    # AA -> all to AA; a bridge fully over sea (AA node 5 to GR node 4) -> half to each end.
+    roads = pd.DataFrame(
+        {
+            "Manually_Added": [0, 0],
+            "Distance": [1.0, 1.0],
+            "Network_Node_A_ID": [1, 5],
+            "Network_Node_B_ID": [5, 4],
+            "flow_dom": [40.0, 0.0],
+            "flow_int": [0.0, 20.0],
+        }
+    )
+    extra = gpd.GeoDataFrame({"Network_Node_ID": [5], "Country": ["AA"]}, geometry=gpd.points_from_xy([50], [150]), crs=crs).to_crs("EPSG:4326")
+    nodes5 = pd.concat([nodes, pd.DataFrame({"Network_Node_ID": [5], "Country": ["AA"], "Network_Node_X": extra.geometry.x, "Network_Node_Y": extra.geometry.y})], ignore_index=True)  # fmt: skip
+    kept = network_vkm_by_country(roads, nodes5, polys, crs, ferry_sea_share=0.5).set_index("geo")
+    assert kept.loc["AA", "etis_dom"] == pytest.approx(40, rel=1e-3)
+    assert kept.loc["AA", "etis_int"] == pytest.approx(10, rel=1e-3)
+    assert kept.loc["EL", "etis_int"] == pytest.approx(10, rel=1e-3)
     with pytest.raises(ValueError, match="sea_handling"):
         network_vkm_by_country(edges, nodes, polys, crs, ferry_sea_share=0.5, sea_handling="nope")
 

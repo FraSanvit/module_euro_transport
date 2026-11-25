@@ -92,10 +92,15 @@ def network_vkm_by_country(
     Each edge is a straight line between its nodes. Its vkm (flow x `Distance`) is
     shared by the length of the line inside each country polygon (`countries` with
     column `CNTR_ID`). A manually added link with more than `ferry_sea_share` of its
-    length on sea counts as sea over its whole length. The part on sea is dropped
-    (`sea_handling="drop"`: trucks on a ferry drive no road km and use no fuel) or goes
-    half to the country of each end node (`"ports"`, nodes file). Zero-length edges go
-    to their end node's country. Returns `geo, etis_dom, etis_int` [vkm].
+    length on sea is a ferry, on sea over its whole length.
+
+    `sea_handling="drop"`: ferry km are dropped (trucks on a ferry drive no road km and
+    use no fuel). Other edges are roads even where the straight line crosses water
+    (coastal roads across bays, bridges such as Great Belt or Oresund): their full vkm
+    is kept, the land shares scaled up to 1, or, with no land at all, half to the
+    country of each end node. `"ports"`: every sea part goes half to the country of
+    each end node (nodes file). Zero-length edges go to their end node's country.
+    Returns `geo, etis_dom, etis_int` [vkm].
     """
     if sea_handling not in ("drop", "ports"):
         raise ValueError(f"sea_handling must be 'drop' or 'ports', not {sea_handling!r}.")
@@ -119,8 +124,20 @@ def network_vkm_by_country(
     LOGGER.info("Ferry rule: %d manually added links counted as sea.", int(ferry.sum()))
     zero_length = (lines["length"].to_numpy() == 0)
     sea = np.where(ferry, 1.0, np.where(zero_length, 0.0, sea))
-    land = land[~land["edge"].isin(np.flatnonzero(ferry | zero_length))]
-    to_ends = np.where(zero_length, 1.0, sea if sea_handling == "ports" else 0.0)
+    land = land[~land["edge"].isin(np.flatnonzero(ferry | zero_length))].copy()
+    if sea_handling == "ports":
+        to_ends = np.where(zero_length, 1.0, sea)
+    else:
+        # Roads over water keep their vkm: land shares scaled to 1; all-sea roads to the ends.
+        has_land = land_total.to_numpy() > 0
+        land["share"] = land["share"] / land_total.to_numpy()[land["edge"]]
+        road_sea = ~ferry & (sea > 0)
+        to_ends = np.where(zero_length | (road_sea & ~has_land), 1.0, 0.0)
+        LOGGER.info(
+            "Roads over water kept: %.4g vkm (%d edges); ferries dropped: %.4g vkm (%d links).",
+            (sea * road_sea * (edges["flow_dom"] + edges["flow_int"]) * edges["Distance"]).sum(), int(road_sea.sum()),
+            (ferry * (edges["flow_dom"] + edges["flow_int"]) * edges["Distance"]).sum(), int(ferry.sum()),
+        )  # fmt: skip
     vkm = {k: edges[f"flow_{k}"].to_numpy() * edges["Distance"].to_numpy() for k in ("dom", "int")}
     parts = [
         pd.DataFrame(
@@ -144,9 +161,9 @@ def network_vkm_by_country(
     out = pd.concat(parts, ignore_index=True).groupby("geo", as_index=False).sum()
     total = vkm["dom"].sum() + vkm["int"].sum()
     LOGGER.info(
-        "Network vkm: %.4g total, %.4g attributed (%.1f%% on sea, %s).",
+        "Network vkm: %.4g total, %.4g attributed (%.1f%% on sea; %s).",
         total, out[["etis_dom", "etis_int"]].to_numpy().sum(),
         100 * (sea * (vkm["dom"] + vkm["int"])).sum() / total,
-        "dropped" if sea_handling == "drop" else "split to end-node countries",
+        "ferries dropped, roads over water kept" if sea_handling == "drop" else "split to end-node countries",
     )  # fmt: skip
     return out
