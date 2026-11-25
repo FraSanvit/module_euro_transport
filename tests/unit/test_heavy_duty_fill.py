@@ -50,7 +50,7 @@ def level_rows(country, l_dom, l_int, alpha, t=None, foreign=None, own=None):
             "country_id": country, "year": YEARS, "L_dom": as_list(l_dom), "L_int": as_list(l_int),
             "alpha_E": as_list(alpha), "T": as_list(t if t is not None else np.nan),
             "L_int_foreign": as_list(foreign if foreign is not None else np.nan),
-            "L_int_own": as_list(own if own is not None else np.nan), "CAB": 0.0,
+            "L_int_own": as_list(own if own is not None else np.nan), "CAB": 0.0, "flags": "",
         }
     )  # fmt: skip
 
@@ -97,3 +97,27 @@ def test_fill_levels_all_cases():
     assert np.allclose(out["L_long"], out["alpha_E"] * out["L_dom"])
     assert np.allclose(out["total"], out["L_dom"] + out["L_int"])
     assert not out[["L_dom", "L_int", "alpha_E"]].isna().any().any()
+
+
+def test_fill_levels_raises_l_int_where_etisplus_does_not_cover():
+    """UUU: ETISplus domestic vkm 1% of D -> L_int at least D x neighbours' L_int per D.
+    VVV is covered (its own small L_int kept); III is an island (L_int stays 0)."""
+    levels = pd.concat(
+        [
+            level_rows("NA1", 100.0, 50.0, 0.8),
+            level_rows("UUU", 100.0, 1.0, 0.8),
+            level_rows("VVV", 100.0, 1.0, 0.8),
+            level_rows("III", 100.0, 0.0, 0.8),
+        ]
+    )
+    gdp = pd.DataFrame([{"country_id": c, "year": y, "gdp_pps": 1.0, "gdp_eur": 1.0}
+                        for c in ["NA1", "UUU", "VVV", "III"] for y in YEARS])  # fmt: skip
+    network = pd.DataFrame({"country_id": ["NA1", "UUU", "VVV"], "etis_dom": [60.0, 1, 50], "etis_dom_legs": [0.0, 0, 0]})
+    neighbours = {c: ["NA1"] for c in ["UUU", "VVV", "III"]}
+    out = fill_levels(levels, gdp, YEARS, neighbours, network=network, reference_year=2012, islands=["III"])
+    out = out.set_index(["country_id", "year"])
+    uuu = out.loc[("UUU", 2012)]
+    assert uuu["L_int"] == pytest.approx(50) and uuu["filled_L_int"] == "neighbour_ratio"
+    assert "etisplus_not_covering" in uuu["flags"]
+    assert uuu["total"] == pytest.approx(150)
+    assert out.loc[("VVV", 2012), "L_int"] == 1 and out.loc[("III", 2012), "L_int"] == 0

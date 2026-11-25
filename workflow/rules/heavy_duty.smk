@@ -251,6 +251,7 @@ rule fill_heavy_duty_levels:
     input:
         levels=rules.heavy_duty_national_levels.output.levels,
         gdp=f"{HD_DIR}/eurostat/nama_10_gdp.csv",
+        network=rules.prepare_heavy_duty_network.output.network,
     output:
         levels=f"{HD_DIR}/national_levels_filled.parquet",
     log:
@@ -263,6 +264,8 @@ rule fill_heavy_duty_levels:
         neighbours=internal["gap_filling"]["neighbours"],
         max_years=internal["gap_filling"]["interpolation_max_years"],
         settings=HD["fill"],
+        reference_year=config["heavy_duty"]["reference_year"],
+        islands=HD["islands"],
     message:
         "Fill the heavy-duty national levels for every country and year (own series, then neighbours)."
     script:

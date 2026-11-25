@@ -355,5 +355,10 @@ heavy_duty:
     trend_years: 5
     outlier_mad: 4
     outlier_min_abs: 0.2
+    # Countries whose domestic ETISplus vkm (E-roads + first and last legs) is below this
+    # share of their domestic level in the reference year are not covered by ETISplus (no
+    # zones, or only transit and trips to and from the EU: ALB, BIH, MKD, MNE, SRB, XKX);
+    # their L_int is at least D x the neighbours' L_int per D (islands excluded).
+    etisplus_min_coverage: 0.1
   # Year-on-year change above which a level is flagged.
   jump_flag: 0.25

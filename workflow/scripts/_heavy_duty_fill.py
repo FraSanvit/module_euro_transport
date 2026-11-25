@@ -105,11 +105,19 @@ def fill_levels(
     window: int = 5,
     outlier_mad: float = 4.0,
     outlier_min_abs: float = 0.1,
+    network: pd.DataFrame | None = None,
+    reference_year: int = 2019,
+    islands=(),
+    min_coverage: float = 0.1,
 ) -> pd.DataFrame:
     """Fill `L_dom`, `L_int` and `alpha_E` for every country and year (§6.9).
 
     `levels` from `heavy_duty_national_levels` (ISO3 `country_id`); `gdp` has
-    `country_id, year, gdp_pps, gdp_eur`. Returns one row per country and year with
+    `country_id, year, gdp_pps, gdp_eur`. `network` (`country_id, etis_dom,
+    etis_dom_legs`) marks countries ETISplus does not cover: domestic ETISplus vkm below
+    `min_coverage` of D in `reference_year` (no zones, or only transit and trips to and
+    from the EU). Their L_int is raised to D x the neighbours' L_int per D where that is
+    larger (islands excluded). Returns one row per country and year with
     the filled series, `L_long, L_short, total`, the diagnostic columns and the labels
     `filled_L_dom, filled_L_int, filled_alpha_E`.
     """
@@ -214,6 +222,30 @@ def fill_levels(
             f.loc[missing, "alpha_E"] = mean[missing]
             f.loc[missing, "filled_alpha_E"] = NEIGHBOUR_MEAN
             LOGGER.info("%s: alpha_E from neighbours %s in %d years.", c, names, int(missing.sum()))
+
+    # Pass 2c: countries ETISplus does not cover: L_int at least the neighbours' L_int per D.
+    if network is not None:
+        etis = network.set_index("country_id")[["etis_dom", "etis_dom_legs"]].sum(axis=1)
+        for c in countries:
+            names = neighbours.get(c)
+            if c in islands or not names:
+                continue
+            f = frames[c]
+            d0 = f["L_dom"].get(reference_year, np.nan)
+            coverage = etis.get(c, 0.0) / d0 if d0 > 0 else np.nan
+            if not coverage < min_coverage:
+                continue
+            floor = neighbour_mean(column("L_int") / column("L_dom"), names) * f["L_dom"]
+            raised = floor > f["L_int"]
+            LOGGER.warning(
+                "%s: ETISplus covers %.1f%% of the domestic level in %d; L_int raised to the "
+                "neighbours' L_int per D (%s) in %d years.", c, 100 * coverage, reference_year, names, int(raised.sum()),
+            )  # fmt: skip
+            f.loc[raised, "L_int"] = floor[raised]
+            f.loc[raised, ["L_int_foreign", "L_int_own"]] = np.nan
+            f.loc[raised, "filled_L_int"] = NEIGHBOUR_RATIO
+            if "flags" in f:
+                f["flags"] = [";".join(filter(None, [str(v) if isinstance(v, str) else "", "etisplus_not_covering"])) for v in f["flags"]]
 
     rows = []
     for c in countries:

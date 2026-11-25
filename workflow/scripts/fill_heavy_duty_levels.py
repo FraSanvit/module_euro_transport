@@ -31,13 +31,17 @@ def read_gdp(path, codes: dict) -> pd.DataFrame:
     return wide.reindex(columns=list(GDP_UNITS.values())).reset_index()
 
 
-def main(levels_path, gdp_path, codes, years, neighbours, max_years, settings, output_path):
+def main(
+    levels_path, gdp_path, network_path, codes, years, neighbours, max_years, settings, reference_year,
+    islands, output_path,
+):  # fmt: skip
     """Fill the levels and write parquet."""
     levels = pd.read_parquet(levels_path)
     gdp = read_gdp(gdp_path, codes)
     out = fill_levels(
         levels, gdp, years, neighbours, max_years, settings["trend_years"],
-        settings["outlier_mad"], settings["outlier_min_abs"],
+        settings["outlier_mad"], settings["outlier_min_abs"], pd.read_parquet(network_path),
+        reference_year, islands, settings["etisplus_min_coverage"],
     )  # fmt: skip
     out["unit"] = "vkm"
     out = out[COLUMNS].sort_values(["country_id", "year"], ignore_index=True)
@@ -56,10 +60,13 @@ if __name__ == "__main__":
     main(
         levels_path=snakemake.input.levels,  # noqa: F821
         gdp_path=snakemake.input.gdp,  # noqa: F821
+        network_path=snakemake.input.network,  # noqa: F821
         codes=snakemake.params.codes,  # noqa: F821
         years=snakemake.params.years,  # noqa: F821
         neighbours=snakemake.params.neighbours,  # noqa: F821
         max_years=snakemake.params.max_years,  # noqa: F821
         settings=snakemake.params.settings,  # noqa: F821
+        reference_year=snakemake.params.reference_year,  # noqa: F821
+        islands=snakemake.params.islands,  # noqa: F821
         output_path=snakemake.output.levels,  # noqa: F821
     )
