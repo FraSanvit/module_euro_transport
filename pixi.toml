@@ -31,6 +31,10 @@ geopandas = ">=1.2.0"
 shapely = ">=2.2.0"
 pyproj = ">=3.8.0"
 matplotlib-base = ">=3.11.2"
+rasterio = ">=1.5.2"
+rioxarray = ">=0.25.0"
+xarray = ">=2026.9.0"
+gregor = ">=0.1.0"
 
 [feature.module.dependencies]
 curl = ">=8.9.1"
@@ -44,6 +48,10 @@ geopandas = ">=1.2.0"
 shapely = ">=2.2.0"
 pyproj = ">=3.8.0"
 matplotlib-base = ">=3.11.2"
+rasterio = ">=1.5.2"
+rioxarray = ">=0.25.0"
+xarray = ">=2026.9.0"
+gregor = ">=0.1.0"
 
 [environments]
 module = { features = ["module"], no-default-feature = true }

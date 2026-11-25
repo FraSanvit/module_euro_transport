@@ -15,5 +15,6 @@ heavy_duty:
   years: [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
   reference_year: 2019
   parameters: {k: 1.0}
+  grid: {resolution_m: 1000}
   cabotage: {include: true, empty_share: host_national}
   international: {reporter_coverage_correction: true}

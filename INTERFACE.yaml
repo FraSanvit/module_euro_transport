@@ -1,6 +1,11 @@
 # Module Input-Output structure for automated docs generation
 convention_version: v1.0.0
 
+wildcards:
+  shapes: Name of a user shape set (folder under <resources>/user/).
+  year: Year of the heavy-duty vehicle-km rasters (one of the configured heavy-duty years).
+  component: "Heavy-duty component: international, domestic_long or domestic_short."
+
 pathvars:
   snakemake_defaults:
     logs:
@@ -16,8 +21,30 @@ pathvars:
   # Eurostat for GBR/NOR, BFS for CHE) is an automatic resource:
   # <resources>/automatic/national_road_vkm.parquet
   # (columns: country_id, year, vehicle_category, vkm [vehicle-km], unit, source, principle).
-  user_resources: {}
-  results: {}
+  user_resources:
+    user_shapes:
+      default: "<resources>/user/{shapes}/shapes.parquet"
+      description: >-
+        Shapes to aggregate the heavy-duty vehicle-km to (only needed for
+        `<results>/{shapes}/heavy_duty/annual_vkm.parquet`). Columns: shape_id,
+        country_id (ISO3), geometry (any CRS). A 1 km cell belongs to the shape
+        containing its centre.
+  results:
+    heavy_duty_vkm_rasters:
+      default: "<results>/heavy_duty/{year}/vkm_{component}.tif"
+      description: >-
+        Heavy-duty vehicle-km per 1 km cell (EPSG:3035) and year, territorial;
+        component in international, domestic_long, domestic_short [vehicle-km].
+    heavy_duty_annual_vkm:
+      default: "<results>/{shapes}/heavy_duty/annual_vkm.parquet"
+      description: >-
+        Heavy-duty vehicle-km per user shape, year and component. Columns: shape_id,
+        country_id, year, vehicle_category, component, vkm [vehicle-km].
+    heavy_duty_diagnostics:
+      default: "<results>/{shapes}/heavy_duty/diagnostics.parquet"
+      description: >-
+        Per country, year and component: vehicle-km on the grid, outside the user
+        shapes, and in shapes of another country [vehicle-km].
 
 # Wildcard example:
 #

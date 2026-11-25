@@ -53,6 +53,16 @@ properties:
             type: number
             exclusiveMinimum: 0
             default: 1.0
+      grid:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          resolution_m:
+            description: Cell size of the allocation grid (EPSG:3035) in metres.
+            type: number
+            exclusiveMinimum: 0
+            default: 1000
       cabotage:
         type: object
         additionalProperties: false

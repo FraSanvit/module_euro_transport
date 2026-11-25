@@ -264,6 +264,9 @@ heavy_duty:
       # GDP in PPS and in euro: proxy for the domestic level of countries without a
       # survey (MULTIYEAR_PLAN.md §6.9).
       nama_10_gdp: "nama_10_gdp/A.CP_MPPS_EU27_2020+CP_MEUR.B1GQ.?"
+      # Tonnes loaded / unloaded by NUTS-3 region (all goods): short-haul key (§6.10).
+      road_go_na_rl3g: "road_go_na_rl3g/A.TOTAL.THS_T.?"
+      road_go_na_ru3g: "road_go_na_ru3g/A.TOTAL.THS_T.?"
     # International tonnes by reporting haulier x loading x unloading country, one file per year.
     road_go_ia_rc: "road_go_ia_rc/?startPeriod={year}&endPeriod={year}&"
   etisplus:
@@ -287,6 +290,32 @@ heavy_duty:
     countries: "https://gisco-services.ec.europa.eu/distribution/v2/countries/geojson/CNTR_RG_10M_2020_4326.geojson"
   # Equal-area projection used for lengths and overlays.
   crs: "EPSG:3035"
+  # Spatial allocation (MULTIYEAR_PLAN.md §6.2, §6.10): inputs and grid extent.
+  spatial:
+    # Country polygons for the grid (1:3 million: ~300 m, enough for 1 km cells).
+    countries: "https://gisco-services.ec.europa.eu/distribution/v2/countries/geojson/CNTR_RG_03M_2020_3035.geojson"
+    # Polygons are clipped to this box (lon/lat): overseas territories, the Canaries and
+    # Madeira fall outside and their share stays with the rest of the country.
+    bbox_lonlat: [-25, 33, 45, 72]
+    buffer_km: 20
+    # Countries GISCO does not separate: their polygon (fixed snapshot) is cut out of the
+    # GISCO polygon of `parent`. Kosovo: geoBoundaries gbOpen ADM0 (OpenStreetMap, CC BY-SA
+    # 2.0, boundary year 2021); GISCO's RS includes it.
+    # Population (GHS-POP R2023A, 1 km, Mollweide), epochs interpolated linearly between
+    # them and held outside (§6.2). One zip of about 320 MB per epoch.
+    ghs_pop:
+      url: "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_GLOBE_R2023A/GHS_POP_E{epoch}_GLOBE_R2023A_54009_1000/V1-0/GHS_POP_E{epoch}_GLOBE_R2023A_54009_1000_V1_0.zip"
+      epochs: [2015, 2020, 2025]
+    # NUTS-3 polygons (GISCO 1:1 million); the tonnes of each year are matched to the
+    # version holding most of their codes.
+    nuts3:
+      url: "https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_01M_{version}_3035_LEVL_3.geojson"
+      versions: [2013, 2016, 2021, 2024]
+    carved:
+      XKX:
+        parent: SRB
+        url: "https://www.geoboundaries.org/data/snapshots/1c423398df24ddf6e730b116567d2181c9782778d0459c3f3b76ca2f9f12b6bc/gbOpen/XKX/ADM0/geoBoundaries-XKX-ADM0.geojson"
+        sha256: 6dcc86a7673137690310e5ae55be91611951876bde5311d23881fa1714594344
   territorial_totals:
     dft:
       # DfT road traffic statistics, GB roads, all HGVs, vehicle-miles (sum over regions).
