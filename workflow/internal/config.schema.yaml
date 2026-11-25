@@ -53,12 +53,6 @@ properties:
             type: number
             exclusiveMinimum: 0
             default: 1.0
-          alpha_max:
-            description: Upper bound of the long-haul share of domestic vkm.
-            type: number
-            exclusiveMinimum: 0
-            maximum: 1
-            default: 0.8
           f_net:
             description: Share of an ETISplus trip's length on the network.
             type: number

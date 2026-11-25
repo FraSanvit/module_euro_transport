@@ -332,6 +332,10 @@ heavy_duty:
   # than this share of the reference-year index comes from hauliers that no longer
   # report (IRL from 2020: 99% UK hauliers), the index is left missing.
   max_coverage_gap: 0.5
+  # road_go_ta_dc changes definition in this year (journeys < 50 km jump ~+40% in almost
+  # every country, national vkm flat); alpha_E from this year on is linked to the earlier
+  # definition, which matches the 2019 calibration year (§6.7).
+  distance_class_break: 2022
   # Unreported empty km (IT, RO; BE, LU in early years): empty/laden ratio = weighted mean
   # over the countries reporting both in that year, Gaussian weights on the difference in
   # log average laden trip length (road_go_ta_vm) with this standard deviation (0.2 ~ +-20%

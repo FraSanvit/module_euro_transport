@@ -162,6 +162,7 @@ rule prepare_heavy_duty_statistics:
         exclude=HD["exclude"],
         max_coverage_gap=HD["max_coverage_gap"],
         empty_bandwidth=HD["empty_km_bandwidth"],
+        distance_break=HD["distance_class_break"],
         correct_coverage=config["heavy_duty"]["international"][
             "reporter_coverage_correction"
         ],

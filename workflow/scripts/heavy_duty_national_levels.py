@@ -23,7 +23,7 @@ from _schemas import HeavyDutyCalibrationSchema, HeavyDutyLevelsSchema
 LOGGER = logging.getLogger(__name__)
 LEVEL_COLUMNS = [
     "LNAT", "ENAT", "CAB", "D", "I_f", "coverage_m", "I_f_corrected", "J_o", "I_o",
-    "alpha_E", "alpha_cap", "L_int_foreign", "L_int_own", "L_int", "L_dom", "L_long",
+    "alpha_E", "s_long", "L_int_foreign", "L_int_own", "L_int", "L_dom", "L_long",
     "L_short", "total", "T",
 ]  # fmt: skip
 
@@ -63,13 +63,13 @@ def main(
     toll = with_geo(pd.read_parquet(toll_path), codes) if toll_path else None
     geo_islands = [codes[c] for c in islands if c in codes]
     geo_toll = [codes[c] for c in toll_countries if c in codes]
-    k, alpha_max, f_net = parameters["k"], parameters["alpha_max"], parameters["f_net"]
+    k, f_net = parameters["k"], parameters["f_net"]
     calibration = calibrate(
-        stats, network, totals, toll, reference_year, k, alpha_max, f_net,
+        stats, network, totals, toll, reference_year, k,
         geo_islands, geo_toll, toll_cabotage_share, countries=list(codes.values()),
     )  # fmt: skip
     levels = annual_levels(
-        stats, calibration, totals, toll, years, alpha_max, f_net, geo_islands, geo_toll,
+        stats, calibration, totals, toll, years, f_net, geo_islands, geo_toll,
         toll_cabotage_share, jump,
     )  # fmt: skip
     levels = to_output(levels, codes, totals)

@@ -72,7 +72,7 @@ HeavyDutyLevelsSchema = pa.DataFrameSchema(
         **{
             name: pa.Column(float, **_NULLABLE_VKM)
             for name in ["LNAT", "ENAT", "CAB", "D", "I_f", "coverage_m", "I_f_corrected",
-                         "J_o", "I_o", "alpha_E", "alpha_cap", "L_int_foreign", "L_int_own",
+                         "J_o", "I_o", "alpha_E", "s_long", "L_int_foreign", "L_int_own",
                          "L_int", "L_dom", "L_long", "L_short", "total", "T"]
         },
         "unit": pa.Column(str, pa.Check.eq("vkm")),
@@ -90,7 +90,8 @@ vkm columns (territorial): L_int (international, incl. transit), L_dom = L_long 
 (domestic), total = L_int + L_dom. Statistics: LNAT/ENAT (own hauliers' national laden/
 empty vkm), CAB (foreign cabotage vkm), D (domestic statistic), I_f / I_f_corrected (foreign
 hauliers' international tonnes), J_o (own hauliers' international tonnes), I_o (own
-hauliers' international vkm), alpha_E / alpha_cap (shares), T (territorial total).
+hauliers' international vkm), alpha_E (laden vkm share of journeys >= 50 km), s_long
+(long-haul share of domestic vkm, f_net x alpha_E), T (territorial total).
 """
 
 HeavyDutyCalibrationSchema = pa.DataFrameSchema(
@@ -100,7 +101,7 @@ HeavyDutyCalibrationSchema = pa.DataFrameSchema(
         **{
             name: pa.Column(float, **_NULLABLE_VKM)
             for name in ["etis_int", "etis_dom", "L_int0", "L_dom0", "w0", "r_f", "r_o",
-                         "s", "gamma", "alpha_cap0"]
+                         "gamma"]
         },
         "calibration_flags": pa.Column(str),
     },

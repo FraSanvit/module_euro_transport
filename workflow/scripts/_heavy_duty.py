@@ -203,9 +203,46 @@ def short_trip_share(dc: pd.DataFrame, survey: pd.DataFrame) -> pd.Series:
     for (geo, year), value in bad.items():
         LOGGER.warning(
             "%s %d: journeys < 50 km exceed national laden vkm (alpha_E %.3f); "
-            "alpha_E left missing (alpha_max used).", geo, year, value,
+            "alpha_E left missing (filled later).", geo, year, value,
         )  # fmt: skip
     return alpha.drop(bad.index).dropna().rename("alpha_E")
+
+
+def link_distance_class_break(alpha: pd.Series, break_year: int | None, max_gap: int = 2) -> pd.DataFrame:
+    """Link alpha_E from `break_year` on to the definition before it (§6.7).
+
+    road_go_ta_dc changes in `break_year` (2022): the share of journeys < 50 km jumps
+    in almost every country while national vkm stays flat. Per country, the short-trip
+    share 1 - alpha_E from `break_year` on is scaled by (1 - alpha_E before) /
+    (1 - alpha_E after), using the nearest observed years on each side, at most
+    `max_gap` years away; otherwise the values from `break_year` on are set missing.
+    Returns `alpha_E` and the marker `alpha_E_linked`, indexed by `geo, year`.
+    """
+    out = pd.DataFrame({"alpha_E": alpha, "alpha_E_linked": False})
+    if break_year is None:
+        return out
+    for geo, series in alpha.groupby(level="geo"):
+        series = series.droplevel("geo")
+        before = series[(series.index < break_year) & (series.index >= break_year - max_gap)]
+        after = series[(series.index >= break_year) & (series.index < break_year + max_gap)]
+        later = [(geo, y) for y in series.index if y >= break_year]
+        if not later:
+            continue
+        if before.empty or after.empty or before.iloc[-1] >= 1 or after.iloc[0] >= 1:
+            LOGGER.warning(
+                "%s: alpha_E not linkable across the %d distance-class break; "
+                "set missing from %d (filled later).", geo, break_year, break_year,
+            )  # fmt: skip
+            out.loc[later, "alpha_E"] = np.nan
+            continue
+        factor = (1 - before.iloc[-1]) / (1 - after.iloc[0])
+        out.loc[later, "alpha_E"] = (1 - (1 - alpha[later]) * factor).clip(lower=0, upper=1)
+        out.loc[later, "alpha_E_linked"] = True
+        LOGGER.info(
+            "%s: alpha_E from %d linked to the earlier definition (short-trip share x %.3f, %d -> %d).",
+            geo, break_year, factor, before.index[-1], after.index[0],
+        )  # fmt: skip
+    return out.dropna(subset=["alpha_E"])
 
 
 # ----------------------------------------------------------------------------- cabotage
@@ -339,18 +376,20 @@ def international_index(
 def statistics(
     tott, dc, hac, ia, tra, reference_year, empty_share="host_national", hosts_zero=(),
     correct_coverage=True, max_coverage_gap=0.5, vm=None, empty_bandwidth=0.2,
+    distance_break=None,
 ) -> pd.DataFrame:
     """All annual statistics per Eurostat country and year (§6.4-§6.7 inputs).
 
     `vm` (road_go_ta_vm) gives laden trip lengths for estimating unreported empty km;
-    without it, unreported empty km are 0 (lower bound).
+    without it, unreported empty km are 0 (lower bound). `distance_break` is the year
+    road_go_ta_dc changes definition (alpha_E linked across it).
     """
     survey = survey_activity(tott)
     if vm is not None:
         survey = estimate_missing_empty(survey, laden_trip_length(vm), empty_bandwidth)
     survey = zero_missing_empty(survey)
     cab = cabotage_vkm(hac, survey, empty_share, hosts_zero).set_index(["geo", "year"])
-    alpha = short_trip_share(dc, survey)
+    alpha = link_distance_class_break(short_trip_share(dc, survey), distance_break)
     index = international_index(
         ia, tra, reference_year, correct_coverage, max_coverage_gap
     ).set_index(["geo", "year"])
@@ -407,9 +446,13 @@ def apply_exclusions(stats: pd.DataFrame, exclude: dict, codes: dict) -> pd.Data
 # ----------------------------------------------------------------------------- levels
 
 
-def alpha_cap(alpha_e: pd.Series, f_net: float, alpha_max: float) -> pd.Series:
-    """alpha_cap = min(f_net * alpha_E, alpha_max); alpha_max where alpha_E is missing."""
-    return (f_net * alpha_e).clip(upper=alpha_max).fillna(alpha_max)
+def long_haul_share(alpha_e, f_net: float):
+    """s_long = f_net * alpha_E (§6.7): share of domestic vkm on the long-haul network.
+
+    alpha_E (laden vkm in journeys of 50 km or more) is within [0, 1], so s_long <= f_net
+    and the short-haul part keeps at least 1 - f_net. Missing where alpha_E is missing.
+    """
+    return f_net * alpha_e
 
 
 def override_split(total, l_int, floor):
@@ -430,8 +473,6 @@ def calibrate(
     toll: pd.DataFrame | None,
     reference_year: int,
     k: float,
-    alpha_max: float,
-    f_net: float,
     islands=(),
     toll_countries=(),
     toll_cabotage_share=1.0,
@@ -443,7 +484,8 @@ def calibrate(
     (vkm, reference flows), `totals` has `geo, year, T`, `toll` has `geo, year,
     toll_foreign` (vkm). `countries` lists the `geo` codes to calibrate (default: all
     in the inputs); countries without inputs get a row of missing values. Returns per
-    `geo`: L_int0, L_dom0, w0, r_f, r_o, s, gamma, alpha_cap0 and `calibration_flags`.
+    `geo`: L_int0, L_dom0, w0, r_f, r_o, gamma and `calibration_flags`. The long-haul
+    share is not calibrated: it is `s_long` each year (§6.7).
     """
     s0 = stats[stats["year"] == reference_year].set_index("geo")
     net = network.set_index("geo")
@@ -458,7 +500,6 @@ def calibrate(
             flags.append("no_network")
         if bool(st.get("empty_zero_intl", False)) and geo not in islands:
             flags.append("own_int_empty_zero_t0")  # r_o then scales a laden-only index
-        cap0 = alpha_cap(pd.Series([st.get("alpha_E", np.nan)]), f_net, alpha_max).iloc[0]
         etis_int = net["etis_int"].get(geo, np.nan)
         etis_dom = net["etis_dom"].get(geo, np.nan)
         l_int0 = 0.0 if geo in islands else k * etis_int
@@ -483,9 +524,6 @@ def calibrate(
         r_f = l_f0 / i_f0 if i_f0 > 0 else np.nan
         i_o0 = st.get("I_o", np.nan)
         r_o = 0.0 if l_o0 == 0 else (l_o0 / i_o0 if i_o0 > 0 else np.nan)
-        s = min(k * etis_dom / d0, cap0) if d0 > 0 else np.nan
-        if d0 > 0 and k * etis_dom / d0 > cap0:
-            flags.append("long_capped_t0")
         gamma = np.nan
         if geo in toll_countries and toll is not None:
             tf = toll.set_index(["geo", "year"])["toll_foreign"].get((geo, reference_year), np.nan)
@@ -494,8 +532,8 @@ def calibrate(
         rows.append(
             {
                 "geo": geo, "etis_int": etis_int, "etis_dom": etis_dom, "L_int0": l_int0,
-                "L_dom0": d0, "w0": w0, "r_f": r_f, "r_o": r_o, "s": s, "gamma": gamma,
-                "alpha_cap0": cap0, "calibration_flags": ";".join(flags),
+                "L_dom0": d0, "w0": w0, "r_f": r_f, "r_o": r_o, "gamma": gamma,
+                "calibration_flags": ";".join(flags),
             }
         )  # fmt: skip
     return pd.DataFrame(rows)
@@ -507,7 +545,6 @@ def annual_levels(
     totals: pd.DataFrame,
     toll: pd.DataFrame | None,
     years: list[int],
-    alpha_max: float,
     f_net: float,
     islands=(),
     toll_countries=(),
@@ -527,7 +564,7 @@ def annual_levels(
     keys = pd.MultiIndex.from_product([sorted(cal.index), years], names=["geo", "year"])
     out = st.reindex(keys)
     out["T"] = tot.reindex(keys)
-    out["alpha_cap"] = alpha_cap(out["alpha_E"], f_net, alpha_max)
+    out["s_long"] = long_haul_share(out["alpha_E"], f_net)
     geo = out.index.get_level_values("geo")
     c = cal.reindex(geo)
     flags = [[] for _ in range(len(out))]
@@ -538,9 +575,12 @@ def annual_levels(
         return out[column].fillna(False).astype(bool).to_numpy()
 
     zero_nat, zero_intl = marker("empty_zero_nat"), marker("empty_zero_intl")
+    linked = marker("alpha_E_linked")
     est_nat, est_intl = marker("empty_est_nat"), marker("empty_est_intl")
     cal_flags = c["calibration_flags"].astype(str).to_numpy()
     for i in range(len(out)):
+        if linked[i]:
+            flags[i].append("alpha_E_linked")
         if est_nat[i] or (est_intl[i] and geo[i] not in islands):
             flags[i].append("empty_km_estimated")
         if np.isnan(lnat[i]):
@@ -570,9 +610,8 @@ def annual_levels(
     l_o = np.where(island, 0.0, l_o)
     l_int = l_f + l_o
     d = out["D"].to_numpy()
-    s = c["s"].to_numpy()
-    cap = out["alpha_cap"].to_numpy()
-    l_long = np.minimum(s * d, cap * d)
+    s_long = out["s_long"].to_numpy()
+    l_long = s_long * d  # long-haul share from Eurostat distance classes (§6.7)
     total = l_int + d
     source = np.where(use_toll, "survey + toll", "survey + index")
 
@@ -587,16 +626,14 @@ def annual_levels(
             flags[i].append("split_missing")
         elif abs(l_int_ov[i] - l_int[i]) > 1e-6 * t[i]:
             flags[i].append("int_adjusted")
-    l_long_ov = np.minimum(s * l_dom_ov, cap * l_dom_ov)
+    l_long_ov = s_long * l_dom_ov
     d = np.where(ov, l_dom_ov, d)
     l_int = np.where(ov, l_int_ov, l_int)
     l_long = np.where(ov, l_long_ov, l_long)
     total = np.where(ov, t, total)
     source = np.where(ov, "territorial total", source)
-    for i in np.flatnonzero(s * d > cap * d):
-        flags[i].append("long_capped")
-    for i in np.flatnonzero(np.isnan(out["alpha_E"].to_numpy())):
-        flags[i].append("alpha_max_used")
+    for i in np.flatnonzero(np.isnan(s_long) & ~np.isnan(d)):
+        flags[i].append("long_short_split_missing")
 
     out["L_int_foreign"] = np.where(ov, np.nan, l_f)
     out["L_int_own"] = np.where(ov, np.nan, l_o)

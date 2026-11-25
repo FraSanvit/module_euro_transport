@@ -30,7 +30,7 @@ def read_inputs(tott_path, dc_path, hac_path, tra_path, vm_path, ia_paths):
 
 def main(
     paths, ia_paths, codes, years, reference_year, include_cabotage, empty_share,
-    cabotage_zero, exclude, correct_coverage, max_coverage_gap, output_path, empty_bandwidth=0.2,
+    cabotage_zero, exclude, correct_coverage, max_coverage_gap, output_path, empty_bandwidth=0.2, distance_break=None,
 ):  # fmt: skip
     """Compute the statistics for the module's countries and write parquet."""
     tott, dc, hac, tra, vm, ia = read_inputs(
@@ -39,7 +39,7 @@ def main(
     zero = [codes[c] for c in cabotage_zero if c in codes]
     stats = statistics(
         tott, dc, hac, ia, tra, reference_year, empty_share, zero, correct_coverage,
-        max_coverage_gap, vm=vm, empty_bandwidth=empty_bandwidth,
+        max_coverage_gap, vm=vm, empty_bandwidth=empty_bandwidth, distance_break=distance_break,
     )  # fmt: skip
     stats = domestic_level(stats, include_cabotage, zero)
     stats = apply_exclusions(stats, exclude, codes)
@@ -72,5 +72,6 @@ if __name__ == "__main__":
         correct_coverage=snakemake.params.correct_coverage,  # noqa: F821
         max_coverage_gap=snakemake.params.max_coverage_gap,  # noqa: F821
         empty_bandwidth=snakemake.params.empty_bandwidth,  # noqa: F821
+        distance_break=snakemake.params.distance_break,  # noqa: F821
         output_path=snakemake.output.statistics,  # noqa: F821
     )

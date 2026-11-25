@@ -15,7 +15,7 @@ assert not levels.duplicated(["country_id", "year"]).any()
 ok = levels.dropna(subset=["L_int", "L_dom", "L_long", "L_short", "total"])
 assert np.allclose(ok["L_int"] + ok["L_dom"], ok["total"], rtol=1e-9)
 assert np.allclose(ok["L_long"] + ok["L_short"], ok["L_dom"], rtol=1e-9)
-assert (ok["L_long"] <= ok["alpha_cap"] * ok["L_dom"] * (1 + 1e-9)).all()
+assert np.allclose(ok["L_long"], ok["s_long"] * ok["L_dom"], rtol=1e-9)
 
 y = levels[levels["year"] == 2019].set_index("country_id")
 # DEU: territorial reference 48.9-51.8 bn vkm; international 16-22 bn (MULTIYEAR_PLAN.md E6).
