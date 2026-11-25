@@ -3,7 +3,8 @@
 
 rule combine_national_road_vkm:
     input:
-        vkm=national_source_tables,
+        tables=national_source_tables,
+        heavy_duty=lambda wc: rules.fill_heavy_duty_levels.output.levels,
     output:
         vkm="<resources>/automatic/national_road_vkm.parquet",
     log:
@@ -13,8 +14,9 @@ rule combine_national_road_vkm:
     params:
         metric="vkm",
         countries=config["countries"],
+        processed=lambda wc: hd_countries(),
     message:
-        "Combine national road vehicle-km of all processed countries (configured countries and their neighbours) and sources."
+        "Combine national road vehicle-km of all processed countries (configured countries and their neighbours) and sources; heavy_duty from the heavy-duty level chain."
     script:
         "../scripts/combine_national_tables.py"
 

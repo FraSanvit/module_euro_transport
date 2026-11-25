@@ -29,9 +29,11 @@ vkm = pd.read_parquet(snakemake.input.vkm_filled).set_index(KEYS)  # noqa: F821
 # NOR car stock 2001-2003 and XKX goods vehicles 2018-2019 (excluded) are interpolated.
 for key in [("NOR", 2002, "passenger_car"), ("XKX", 2018, "heavy_duty"), ("BIH", 2012, "passenger_car")]:
     assert stock.loc[key, "filled"] == "interpolated", key
-# GBR vehicle-km 2018 is interpolated for all categories.
+# GBR vehicle-km 2018 is interpolated for all categories but heavy_duty (complete from the
+# heavy-duty level chain).
 gbr = vkm.xs(("GBR", 2018), level=["country_id", "year"])
-assert len(gbr) == 5 and set(gbr["filled"]) == {"interpolated"}
+assert len(gbr) == 5 and gbr.loc["heavy_duty", "filled"] == "observed"
+assert set(gbr.drop(index="heavy_duty")["filled"]) == {"interpolated"}
 
 # Categories missing entirely are filled from neighbour ratios to cars, for the
 # years with own car stock: MKD light, heavy, motorcycle; XKX motorcycle.
