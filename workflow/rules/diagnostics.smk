@@ -3,7 +3,7 @@
 
 rule plot_heavy_duty_split:
     input:
-        levels=rules.heavy_duty_national_levels.output.levels,
+        levels=rules.fill_heavy_duty_levels.output.levels,
     output:
         figure="<resources>/automatic/diagnostics/heavy_duty_split.png",
     log:
@@ -13,6 +13,6 @@ rule plot_heavy_duty_split:
     params:
         reference_year=config["heavy_duty"]["reference_year"],
     message:
-        "Plot heavy-duty vehicle-km per country and year by component, before gap filling."
+        "Plot heavy-duty vehicle-km per country and year by component, after gap filling."
     script:
         "../scripts/plot_heavy_duty_split.py"

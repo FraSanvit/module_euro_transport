@@ -1,10 +1,10 @@
 """Diagnostic plot: heavy-duty vehicle-km per country and year, split by component.
 
-One panel per country (own y scale), stacked bars per year:
-domestic short-haul, domestic long-haul, international by own hauliers and
-international by foreign hauliers. Any part known only as an aggregate (e.g. the
-international part of a territorial total) is drawn hatched as one segment. Years
-whose total is missing (left for the gap-filling step) are marked on the baseline.
+One panel per country (own y scale), stacked bars per year from the filled national
+levels (MULTIYEAR_PLAN.md §6.9): domestic short-haul, domestic long-haul,
+international by own hauliers and by foreign hauliers. International vkm without a
+haulier split (territorial totals, values filled from ratios or neighbours) is one
+hatched segment. Segments that are filled rather than observed are drawn lighter.
 """
 
 import math
@@ -15,7 +15,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
-from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
 
 SURFACE = "#fcfcfb"
@@ -23,35 +22,27 @@ TEXT = "#0b0b0b"
 TEXT_2 = "#52514e"
 MUTED = "#8a8984"
 GRID = "#e4e3df"
+FILLED_ALPHA = 0.4
 
 # Categorical slots 1-4 in fixed order (validated adjacent-pair palette).
 SEGMENTS = [
-    ("L_short", "Domestic, short-haul (<50 km)", "#2a78d6", None),
-    ("L_long", "Domestic, long-haul", "#eb6834", None),
-    ("L_int_own", "International, own hauliers", "#1baf7a", None),
-    ("L_int_foreign", "International, foreign hauliers", "#eda100", None),
-    ("unsplit", "Known only as an aggregate (not split)", SURFACE, "////"),
+    ("L_short", "Domestic, short-haul (<50 km)", "#2a78d6", None, "domestic"),
+    ("L_long", "Domestic, long-haul (≥50 km)", "#eb6834", None, "domestic"),
+    ("L_int_own", "International, own hauliers", "#1baf7a", None, "international"),
+    ("L_int_foreign", "International, foreign hauliers", "#eda100", None, "international"),
+    ("int_unsplit", "International, not split by haulier", SURFACE, "////", "international"),
 ]
 
 
 def prepare(levels: pd.DataFrame) -> pd.DataFrame:
-    """Add the not-split segment and convert to bn vkm.
-
-    Not split = the part of a known total without a component split (territorial
-    totals: international, or the whole total when the split is missing; countries
-    without a long-haul share: domestic). Where the total is missing, an international
-    level without its own/foreign split is shown instead.
-    """
+    """Add the not-split international segment and filled markers; convert to bn vkm."""
     df = levels.copy()
-    parts = [column for column, *_ in SEGMENTS[:-1]]
-    residual = df["total"] - df[parts].fillna(0).sum(axis=1)
-    int_unsplit = df["L_int_foreign"].isna() & df["L_int_own"].isna()
-    df["unsplit"] = np.where(
-        df["total"].notna(), residual, np.where(int_unsplit, df["L_int"], np.nan)
-    )
-    df["unsplit"] = df["unsplit"].where(
-        df["unsplit"] > 1e-9 * df["total"].fillna(0).abs().clip(lower=1)
-    )
+    split = df["L_int_own"].fillna(0) + df["L_int_foreign"].fillna(0)
+    no_split = df["L_int_own"].isna() & df["L_int_foreign"].isna()
+    df["int_unsplit"] = np.where(no_split, df["L_int"], df["L_int"] - split)
+    df["int_unsplit"] = df["int_unsplit"].where(df["int_unsplit"] > 1e-9 * df["total"].abs().clip(lower=1))
+    df["filled_domestic"] = (df["filled_L_dom"] != "observed") | (df["filled_alpha_E"] != "observed")
+    df["filled_international"] = df["filled_L_int"] != "observed"
     for column, *_ in SEGMENTS:
         df[column] = df[column] / 1e9
     df["total"] = df["total"] / 1e9
@@ -65,38 +56,26 @@ def country_order(df: pd.DataFrame, reference_year: int) -> list[str]:
     return list(ref.sort_values(ascending=False, na_position="last").index)
 
 
-def draw_panel(ax, data: pd.DataFrame, years: list[int], reference_year: int) -> None:
-    """Stacked bars for one country."""
+def draw_panel(ax, data: pd.DataFrame, years: list[int]) -> None:
+    """Stacked bars for one country; filled segments lighter."""
     data = data.set_index("year").reindex(years)
     x = np.arange(len(years))
     bottom = np.zeros(len(years))
-    for column, _, color, hatch in SEGMENTS:
+    for column, _, color, hatch, part in SEGMENTS:
         values = data[column].fillna(0).to_numpy()
         if not values.any():
             continue
-        ax.bar(
-            x, values, bottom=bottom, width=0.78, color=color, hatch=hatch,
-            edgecolor=SURFACE if hatch is None else MUTED, linewidth=0.5 if hatch is None else 0.4,
-        )  # fmt: skip
+        filled = data[f"filled_{part}"].fillna(False).to_numpy(dtype=bool)
+        for mask, alpha in [(~filled, 1.0), (filled, FILLED_ALPHA)]:
+            if not (values * mask).any():
+                continue
+            ax.bar(
+                x[mask], values[mask], bottom=bottom[mask], width=0.78, color=color, hatch=hatch, alpha=alpha,
+                edgecolor=SURFACE if hatch is None else MUTED, linewidth=0.5 if hatch is None else 0.4,
+            )  # fmt: skip
         bottom += values
-    missing = data["total"].isna().to_numpy()
-    top = bottom.max() if bottom.max() > 0 else 1.0
-    ax.scatter(
-        x[missing],
-        np.zeros(missing.sum()),
-        marker="x",
-        s=14,
-        color=TEXT_2,
-        linewidth=0.9,
-        zorder=3,
-        clip_on=False,
-    )
-    ax.set_ylim(0, top * 1.08)
+    ax.set_ylim(0, (bottom.max() if bottom.max() > 0 else 1.0) * 1.08)
     ax.set_xlim(-0.6, len(years) - 0.4)
-    if missing.all() and bottom.max() == 0:
-        ax.text(0.5, 0.5, "no data\n(left for gap filling)", transform=ax.transAxes,
-                ha="center", va="center", fontsize=6.5, color=MUTED)  # fmt: skip
-        ax.set_yticks([])
 
 
 def style_axis(ax, years: list[int]) -> None:
@@ -132,13 +111,10 @@ def plot(
     for ax, country in zip(axes.flat, countries):
         data = df[df["country_id"] == country]
         style_axis(ax, years)
-        draw_panel(ax, data, years, reference_year)
+        draw_panel(ax, data, years)
         ref = data.loc[data["year"] == reference_year, "total"]
-        label = (
-            f"{ref.iloc[0]:.1f} bn in {reference_year}"
-            if len(ref) and pd.notna(ref.iloc[0])
-            else "total missing"
-        )
+        all_filled = data["filled_domestic"].all() and data["filled_L_dom"].ne("observed").all()
+        label = f"{ref.iloc[0]:.2f} bn in {reference_year}" + (" (filled)" if all_filled else "")
         ax.set_title(
             country, loc="left", fontsize=8, color=TEXT, fontweight="bold", pad=3
         )
@@ -156,33 +132,18 @@ def plot(
         ax.set_visible(False)
 
     handles = [
-        Patch(
-            facecolor=color,
-            edgecolor=MUTED if hatch else color,
-            hatch=hatch,
-            linewidth=0.4,
-            label=label,
-        )
-        for _, label, color, hatch in SEGMENTS
+        Patch(facecolor=color, edgecolor=MUTED if hatch else color, hatch=hatch, linewidth=0.4, label=label)
+        for _, label, color, hatch, _ in SEGMENTS
     ]
-    handles.append(
-        Line2D(
-            [],
-            [],
-            marker="x",
-            linestyle="",
-            color=TEXT_2,
-            markersize=4,
-            label="Total missing (left for gap filling)",
-        )
-    )
+    handles.append(Patch(facecolor=MUTED, alpha=FILLED_ALPHA, edgecolor="none", label="Lighter: filled, not observed"))
     fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.01, 1 - 0.45 / fig.get_figheight()),
                ncol=3, frameon=False, fontsize=7, labelcolor=TEXT, handlelength=1.2, columnspacing=1.5)  # fmt: skip
-    fig.text(0.01, 1 - 0.12 / fig.get_figheight(), "Heavy-duty vehicle-km by component, before gap filling",
+    fig.text(0.01, 1 - 0.12 / fig.get_figheight(), "Heavy-duty vehicle-km by component, after gap filling",
              fontsize=11, color=TEXT, fontweight="bold", va="top")  # fmt: skip
     fig.text(0.01, 1 - 0.32 / fig.get_figheight(),
              "Billion vehicle-km per year on each country's territory. Each panel has its own scale; "
-             f"countries ordered by {reference_year} total.",
+             f"countries ordered by {reference_year} total. Filled: own series extended, or from neighbours "
+             "(domestic per GDP in PPS, international per domestic, long-haul share).",
              fontsize=7.5, color=TEXT_2, va="top")  # fmt: skip
     fig.tight_layout(
         rect=(0, 0, 1, 1 - 1.0 / fig.get_figheight()), h_pad=1.2, w_pad=0.8
