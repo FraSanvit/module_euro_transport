@@ -69,7 +69,7 @@ def to_grid(source_path, grid_profile, split: int = 3, chunk_rows: int = 256) ->
         inside = (row >= 0) & (row < height) & (col >= 0) & (col < width)
         np.add.at(out, row[inside] * width + col[inside], share[inside])
         placed += share[inside].sum()
-    LOGGER.info("Source window %.4g persons, on the grid %.4g (%.3f).", data.sum(), placed, placed / data.sum())
+    LOGGER.info("Source window total %.4g, on the grid %.4g (%.3f).", data.sum(), placed, placed / data.sum())
     return out.reshape(height, width)
 
 
@@ -87,7 +87,7 @@ def main(zip_path, grid_path, polygons_path, output_path, reference=None):
     population = to_grid(tif_in_zip(zip_path), profile)
     for country, total in country_totals(population, ids, countries).items():
         ratio = total / reference[country] if reference and reference.get(country) else np.nan
-        LOGGER.info("%s: %.4g persons (raster / Eurostat %.3f).", country, total, ratio)
+        LOGGER.info("%s: %.4g on the grid (raster / reference %.3f).", country, total, ratio)
     write_raster(output_path, population.astype("float32"), profile["transform"], profile["crs"], nodata=None)
 
 

@@ -128,7 +128,7 @@ if __name__ == "__main__":
         levels_path=snakemake.input.levels,  # noqa: F821
         grid_path=snakemake.input.grid,  # noqa: F821
         polygons_path=snakemake.input.polygons,  # noqa: F821
-        population_paths={e: snakemake.input[f"population_{e}"] for e in epochs},  # noqa: F821
+        population_paths={e: snakemake.input[f"weight_{e}"] for e in epochs},  # noqa: F821
         nuts_rasters={v: snakemake.input[f"nuts_{v}"] for v in versions},  # noqa: F821
         nuts_codes_path=snakemake.input.nuts_codes,  # noqa: F821
         tonnes_path=snakemake.input.tonnes,  # noqa: F821

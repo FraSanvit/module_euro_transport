@@ -53,6 +53,19 @@ properties:
             type: number
             exclusiveMinimum: 0
             default: 1.0
+      short_haul:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          weight:
+            description: >-
+              Raster that spreads NUTS-3 tonnes within a region in the short-haul key
+              (and the ETISplus first and last legs): GHS-POP population or GHSL
+              non-residential built-up surface.
+            type: string
+            enum: [population, non_residential_built]
+            default: population
       grid:
         type: object
         additionalProperties: false

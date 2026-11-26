@@ -84,6 +84,61 @@ rule download_heavy_duty_ghs_pop:
         'curl -sSfL --retry 5 --retry-delay 10 -o {output.zip} "{params.url}" 2> {log}'
 
 
+rule download_heavy_duty_ghs_nres:
+    output:
+        zip=f"{SPATIAL_DIR}/raw/ghs_built_nres_{{epoch}}.zip",
+    log:
+        "<logs>/download_heavy_duty_ghs_nres_{epoch}.log",
+    conda:
+        "../envs/module.yaml"
+    wildcard_constraints:
+        epoch=r"\d{4}",
+    params:
+        url=lambda wc: HD["spatial"]["ghs_built_nres"]["url"].format(epoch=wc.epoch),
+    message:
+        "Download GHSL non-residential built-up surface, epoch {wildcards.epoch} (1 km, about 34 MB)."
+    shell:
+        'curl -sSfL --retry 5 --retry-delay 10 -o {output.zip} "{params.url}" 2> {log}'
+
+
+rule prepare_heavy_duty_nres:
+    input:
+        zip=rules.download_heavy_duty_ghs_nres.output.zip,
+        grid=rules.prepare_heavy_duty_grid.output.raster,
+        polygons=rules.prepare_heavy_duty_grid.output.polygons,
+    output:
+        population=f"{SPATIAL_DIR}/non_residential_built_{{epoch}}.tif",
+    log:
+        "<logs>/prepare_heavy_duty_nres_{epoch}.log",
+    conda:
+        "../envs/module.yaml"
+    wildcard_constraints:
+        epoch=r"\d{4}",
+    message:
+        "Non-residential built-up surface on the allocation grid, epoch {wildcards.epoch}."
+    script:
+        "../scripts/prepare_heavy_duty_population.py"
+
+
+def short_haul_weights():
+    """Within-region weight rasters of the short-haul key, by epoch (config short_haul.weight)."""
+    weight = config["heavy_duty"]["short_haul"]["weight"]
+    block, prefix = {
+        "population": ("ghs_pop", "population"),
+        "non_residential_built": ("ghs_built_nres", "non_residential_built"),
+    }[weight]
+    return {
+        f"weight_{e}": f"{SPATIAL_DIR}/{prefix}_{e}.tif"
+        for e in HD["spatial"][block]["epochs"]
+    }
+
+
+def short_haul_epochs():
+    weight = config["heavy_duty"]["short_haul"]["weight"]
+    block = {"population": "ghs_pop", "non_residential_built": "ghs_built_nres"}[weight]
+    return HD["spatial"][block]["epochs"]
+
+
 rule prepare_heavy_duty_population:
     input:
         zip=rules.download_heavy_duty_ghs_pop.output.zip,
@@ -150,10 +205,7 @@ rule prepare_heavy_duty_nuts3:
 
 rule prepare_heavy_duty_etisplus_keys:
     input:
-        **{
-            f"population_{e}": f"{SPATIAL_DIR}/population_{e}.tif"
-            for e in HD["spatial"]["ghs_pop"]["epochs"]
-        },
+        **short_haul_weights(),
         **{
             f"nuts_{v}": f"{SPATIAL_DIR}/nuts3_{v}.tif"
             for v in HD["spatial"]["nuts3"]["versions"]
@@ -175,7 +227,7 @@ rule prepare_heavy_duty_etisplus_keys:
     conda:
         "../envs/module.yaml"
     params:
-        epochs=HD["spatial"]["ghs_pop"]["epochs"],
+        epochs=short_haul_epochs(),
         versions=HD["spatial"]["nuts3"]["versions"],
         codes=HD["country_codes"],
         reference_year=config["heavy_duty"]["reference_year"],
@@ -189,10 +241,7 @@ rule prepare_heavy_duty_etisplus_keys:
 def spatial_inputs():
     """Inputs shared by the allocation of every year."""
     return {
-        **{
-            f"population_{e}": f"{SPATIAL_DIR}/population_{e}.tif"
-            for e in HD["spatial"]["ghs_pop"]["epochs"]
-        },
+        **short_haul_weights(),
         **{
             f"nuts_{v}": f"{SPATIAL_DIR}/nuts3_{v}.tif"
             for v in HD["spatial"]["nuts3"]["versions"]
@@ -224,7 +273,7 @@ rule allocate_heavy_duty_vkm:
     wildcard_constraints:
         year=r"\d{4}",
     params:
-        epochs=HD["spatial"]["ghs_pop"]["epochs"],
+        epochs=short_haul_epochs(),
         versions=HD["spatial"]["nuts3"]["versions"],
         codes=HD["country_codes"],
     message:

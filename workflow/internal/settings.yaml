@@ -311,6 +311,12 @@ heavy_duty:
     nuts3:
       url: "https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_01M_{version}_3035_LEVL_3.geojson"
       versions: [2013, 2016, 2021, 2024]
+    # Non-residential built-up surface (GHS-BUILT-S NRES R2023A, 1 km, Mollweide; m2 per
+    # cell): within-region weight of the short-haul key when `short_haul.weight` is
+    # non_residential_built. About 34 MB per epoch.
+    ghs_built_nres:
+      url: "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_BUILT_S_GLOBE_R2023A/GHS_BUILT_S_NRES_E{epoch}_GLOBE_R2023A_54009_1000/V1-0/GHS_BUILT_S_NRES_E{epoch}_GLOBE_R2023A_54009_1000_V1_0.zip"
+      epochs: [2015, 2020, 2025]
     carved:
       XKX:
         parent: SRB
